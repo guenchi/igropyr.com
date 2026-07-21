@@ -644,7 +644,7 @@
 (define TRAVEL (fl+ maxd 380.0))
 (define PACE 1.4)
 (define FIRE-END (fl/ CYCLE PACE))          ; ashes gone by here (~6.1s)
-(define PAUSE 1.0)                        ; ashes gone -> ice starts (was 3s)
+(define PAUSE 0.0)                        ; ice starts as soon as the ashes clear
 (define ICE-START (fl+ FIRE-END PAUSE))
 (define ICE-DUR 5.5)                      ; the line reaches the far corner here
 (define ICE-SPEED (fl/ maxd ICE-DUR))     ; front-distance per second
