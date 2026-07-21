@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Igropyr — Origins</title>
+  <meta name="description" content="How Igropyr began: the search for a Scheme web server built for production, from a libuv prototype to an Erlang-style rebuild.">
+  <style>
+    :root {
+      --bg: #fbf9f6;
+      --ink: #1c1a17;
+      --dim: #6b6558;
+      --accent: #e8590c;
+      --line: #e7e0d6;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Georgia", serif;
+      line-height: 1.7;
+      font-size: 19px;
+    }
+    .wrap {
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 12vh 1.5rem 16vh;
+    }
+    .mark {
+      font-size: 2.6rem;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 1.5rem;
+    }
+    h1 {
+      font-size: 2.75rem;
+      letter-spacing: -0.01em;
+      margin: 0 0 0.25rem;
+      font-weight: 600;
+    }
+    .kicker {
+      font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.72rem;
+      color: var(--dim);
+      margin: 0 0 3rem;
+    }
+    .rule {
+      width: 3rem;
+      height: 3px;
+      background: var(--accent);
+      border: 0;
+      margin: 0 0 2.5rem;
+    }
+    p { margin: 0 0 1.5rem; }
+    p.lead { font-size: 1.15rem; color: var(--ink); }
+    em { font-style: italic; }
+    .quote {
+      font-style: italic;
+      color: var(--dim);
+    }
+    footer {
+      margin-top: 5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--line);
+      font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+      font-size: 0.85rem;
+      color: var(--dim);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    @media (max-width: 480px) {
+      body { font-size: 18px; }
+      h1 { font-size: 2.1rem; }
+      .wrap { padding: 8vh 1.25rem 12vh; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="mark">λ</div>
+    <h1>Igropyr</h1>
+    <p class="kicker">Origins</p>
+    <hr class="rule">
+
+    <p class="lead">Igropyr began in 2018, out of love for Scheme. I was
+      looking for a modern Scheme web server I could actually run in
+      production — not a proof of concept content to stay in academia — and
+      I found nothing.</p>
+
+    <p>Back then, and still today, Scheme web servers stop at raw string
+      concatenation to build a request and its response. They lack the
+      modern conveniences — proper JSON responses and the like — that a
+      real application backend needs.</p>
+
+    <p>So I improvised. I tried Apache calling out to CGI. Then, inspired
+      by Node, I wrote a first thin wrapper over libuv. That was Igropyr's
+      earliest prototype.</p>
+
+    <p>In the years that followed I came to know Erlang, and took its
+      ideas to heart: message passing, and <em>let it crash</em>. Around
+      that time <span class="quote">Swish</span> had built the earliest
+      Erlang-style system on Chez Scheme — but its network programming
+      still lived in that same primitive, string-concatenation world.</p>
+
+    <p>Swish is what convinced me. Inspired by it, I decided to rebuild
+      Igropyr from the ground up.</p>
+
+    <footer>
+      <a href="https://github.com/guenchi/Igropyr">GitHub</a> ·
+      Built in pure Scheme
+    </footer>
+  </main>
+</body>
+</html>
