@@ -116,6 +116,11 @@
       this shortens how long a user waits, and it makes server-side
       failures invisible from the user's side.</p>
 
+    <p>And it carries messages as s-expressions themselves: when both
+      ends speak Scheme, a request and its reply need no codec at all —
+      the data crosses the wire as it is, exact numbers intact. Scheme,
+      at last, has a JSON of its own.</p>
+
     <footer>
       <a href="https://github.com/guenchi/Igropyr">GitHub</a> ·
       Built in pure Scheme
