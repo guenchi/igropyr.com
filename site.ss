@@ -165,7 +165,7 @@
            "commercial included. I hope you enjoy it.")
 
         (footer
-          (a (@ (href "https://github.com/guenchi/Igropyr")) "GitHub")
+          (a (@ (href "https://github.com/guenchi/Igropyr/blob/master/LICENSE")) "MIT")
           " · Built in "
           (span (@ (class "foot-stack"))
             "pure Scheme" (br)
