@@ -212,7 +212,10 @@
      (varying float v_ih)
      (varying float v_seed)
      (define (main) void
-       (local float ia (+ (- (fl 760) a.y) (- (* a.w (fl 40)) (fl 20))))
+       ;; the SAME arrival metric the fire used (a.z, Dijkstra from the
+       ;; bottom-left seed), so the frost travels the identical diagonal;
+       ;; a little seed jitter only roughens the crystal crest
+       (local float ia (+ a.z (- (* a.w (fl 24)) (fl 12))))
        (local float ih (- ice ia))
        (set! v_ih ih)
        (set! v_seed a.w)
@@ -491,7 +494,7 @@
 (define PAUSE 3.0)
 (define ICE-START (fl+ FIRE-END PAUSE))
 (define ICE-DUR 5.5)
-(define ICE-MAX 810.0)
+(define ICE-MAX (fl+ maxd 120.0))       ; cover the whole lattice like the fire
 (define ICE-HOLD 1.3)
 (define ASM-START (fl+ ICE-START (fl+ ICE-DUR ICE-HOLD)))
 (define ASM-DUR 2.6)
