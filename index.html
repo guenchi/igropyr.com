@@ -109,6 +109,13 @@
     <p>Swish is what convinced me. Inspired by it, I decided to rebuild
       Igropyr from the ground up.</p>
 
+    <p>Today Igropyr goes further than that Erlang prototype ever did.
+      When a handler crashes or a request times out, the server can tell
+      the client that the request went wrong — and hand the choice back
+      to it: retry, retry with different parameters, or stop. In practice
+      this shortens how long a user waits, and it makes server-side
+      failures invisible from the user's side.</p>
+
     <footer>
       <a href="https://github.com/guenchi/Igropyr">GitHub</a> ·
       Built in pure Scheme
