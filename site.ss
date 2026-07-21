@@ -58,6 +58,8 @@
     (font-size (rem 0 85)) (color (var dim)))
    ("footer a" (color (var accent)) (text-decoration none))
    ("footer a:hover" (text-decoration underline))
+   ;; the Goeteia link wears Goeteia's own site colour (lapis)
+   ("footer a.gt" (color "#1550c4"))
    ;; stacks "pure Scheme" over "Powered by Goeteia." with both lines left-
    ;; aligned, so "Powered" sits directly under "pure"
    (".foot-stack" (display inline-block) (vertical-align top))
@@ -161,7 +163,7 @@
           " · Built in "
           (span (@ (class "foot-stack"))
             "pure Scheme" (br)
-            "Powered by " (a (@ (href "https://goeteia.dev")) "Goeteia") ".")))
+            "Powered by " (a (@ (href "https://goeteia.dev") (class "gt")) "Goeteia") ".")))
       (script (@ (type "module") (src "boot.js")))
       )))
 
