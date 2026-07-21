@@ -277,9 +277,9 @@
        (local vec3 c (mix crest white (smoothstep (fl 0) (fl 0 50) t)))
        (local float glint (+ (fl 0 88) (* (fl 0 12) (sin (+ (* time (fl 8)) (* v_seed (fl 40)))))))
        (local float hot (+ (fl 1) (* "1.1" (exp (- (/ (* v_ih v_ih) "50.0"))))))
-       ;; the frozen edge settles to a faint, colourless line; only the
-       ;; moving freezing crest stays bright
-       (local float ea (* soft (mix (fl 1) (fl 0 30) (smoothstep (fl 0 10) (fl 0 55) t))))
+       ;; only the moving freezing crest shows; the frozen edge fades to
+       ;; fully transparent, leaving just the ice flowers on the lattice
+       (local float ea (* soft (- (fl 1) (smoothstep (fl 0 10) (fl 0 55) t))))
        (set! gl_FragColor (vec4 (* (* c glint) hot) (* alpha ea)))))))
 
 ;; ================= FROST: ice flowers bloom behind the line ============
