@@ -192,7 +192,7 @@
 (js-set! hctx "fillStyle" "#fff")
 (js-set! hctx "textAlign" "center")
 (js-set! hctx "textBaseline" "middle")
-(js-set! hctx "font" "700 200px Georgia, 'Times New Roman', serif")
+(js-set! hctx "font" "700 150px Georgia, 'Times New Roman', serif")
 
 (define CAPT 7000)
 (define samp-px (fx-alloc! (* 1120 760 4)))
