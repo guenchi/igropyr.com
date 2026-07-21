@@ -109,7 +109,7 @@
 ;; instead of filling the cells, drop many crystals at random honeycomb
 ;; points; each inherits that point's arrival (so it blooms after the front
 ;; passes) and carries its own seed for a distinct shape, size and rotation
-(define NFLOWER 900)
+(define NFLOWER 520)
 (define FLOW (fx-alloc! (* NFLOWER 16)))        ; x, y, arrival, seed
 (let seedf ((i 0))
   (when (< i NFLOWER)
@@ -299,7 +299,7 @@
        (set! gl_Position (vec4 c (fl 0) (fl 1)))
        (set! v_fill (smoothstep lag (+ lag (fl 120)) (- ice a.z)))
        (set! v_seed a.w)
-       (set! gl_PointSize (+ (fl 46) (* (fract (* a.w "17.3")) (fl 60))))))
+       (set! gl_PointSize (+ (fl 58) (* (fract (* a.w "17.3")) (fl 66))))))
    '((precision mediump float)
      (varying float v_fill)
      (varying float v_seed)
@@ -318,27 +318,27 @@
        (local float spc (+ (fl 0 13) (* (hash (+ sd (fl 2))) (fl 0 10))))
        (local float blen (+ (fl 0 06) (* (hash (+ sd (fl 3))) (fl 0 09))))
        (local float slope (+ (fl 0 60) (* (hash (+ sd (fl 4))) (fl 0 55))))
-       (local float w (+ (fl 0 020) (* (hash (+ sd (fl 5))) (fl 0 030))))
-       (local float corer (+ (fl 0 09) (* (hash (+ sd (fl 6))) (fl 0 10))))
+       (local float w (+ (fl 0 013) (* (hash (+ sd (fl 5))) (fl 0 016))))
+       (local float corer (+ (fl 0 05) (* (hash (+ sd (fl 6))) (fl 0 05))))
        ;; fold the sprite into six-fold mirror symmetry, centred on an arm
        (local float ang (+ (atan p.y p.x) (* sd "6.283")))
        (set! ang (- (mod (+ ang "0.5236") "1.0472") "0.5236"))
        (set! ang (abs ang))
        (local vec2 q (* r (vec2 (cos ang) (sin ang))))     ; q.x along the arm
-       ;; the main spine
-       (local float spine (* (* (- (fl 1) (smoothstep (fl 0) w q.y))
+       ;; the main spine -- a narrow width band keeps the edge crisp
+       (local float spine (* (* (- (fl 1) (smoothstep (* w (fl 0 78)) w q.y))
                                 (step (fl 0 04) q.x))
-                             (- (fl 1) (smoothstep (* armlen (fl 0 88)) armlen q.x))))
+                             (- (fl 1) (smoothstep (* armlen (fl 0 94)) armlen q.x))))
        ;; evenly spaced side branches, each a short diagonal off the spine
        (local float rep (mod q.x spc))
-       (local float branch (* (* (- (fl 1) (smoothstep (fl 0) (* w "1.4") (abs (- q.y (* rep slope)))))
+       (local float branch (* (* (- (fl 1) (smoothstep (* w (fl 0 95)) (* w "1.25") (abs (- q.y (* rep slope)))))
                                  (step (fl 0 02) rep))
-                              (* (- (fl 1) (smoothstep blen (* blen "1.4") rep))
-                                 (- (fl 1) (smoothstep armlen (* armlen "1.06") q.x)))))
-       (local float flake (max spine (* branch (fl 0 85))))
-       ;; a small solid hexagonal core
-       (set! flake (max flake (- (fl 1) (smoothstep (* corer (fl 0 55)) corer r))))
-       (if (< flake (fl 0 02)) (discard))
+                              (* (- (fl 1) (smoothstep (* blen (fl 0 80)) blen rep))
+                                 (- (fl 1) (smoothstep (* armlen (fl 0 98)) armlen q.x)))))
+       (local float flake (max spine (* branch (fl 0 90))))
+       ;; a small solid hexagonal core with a crisp rim
+       (set! flake (max flake (- (fl 1) (smoothstep (* corer (fl 0 82)) corer r))))
+       (if (< flake (fl 0 04)) (discard))
        ;; icy blue -> lighter icy blue (kept blue, not white, so the flake
        ;; reads on the light page)
        (local vec3 c (mix (vec3 (fl 0 40) (fl 0 60) (fl 0 92))
