@@ -25,6 +25,9 @@
    ;; below the large-screen breakpoint it fills the viewport
    ("#bg"
     (position fixed) (top 0) (left 0) (width (vw 100)) (height (vh 100))
+    ;; the canvas buffer is 1120x760; cover keeps that aspect instead of
+    ;; stretching (which squished it on tall phone screens)
+    (object-fit cover) (object-position center)
     (z-index -1) (pointer-events none) (opacity (dec 0 50)))
    ;; on large screens it shrinks to a block bled off the top-right corner,
    ;; placed like the igropyr site's hero fire
