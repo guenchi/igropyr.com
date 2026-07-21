@@ -335,6 +335,13 @@
        (local vec3 lapis (vec3 (fl 0 08) (fl 0 31) (fl 0 77)))
        (local vec3 c (mix crest azure (smoothstep (fl 0) (fl 0 25) t)))
        (set! c (mix c lapis (smoothstep (fl 0 25) (fl 1) t)))
+       ;; white rime settles on the frozen lattice -- scattered, twinkling
+       ;; crystals over the hardened Goeteia blue
+       (local float rime (* (* (smoothstep (fl 0 45) (fl 1) t)
+                               (step (fl 0 60) (fract (* v_seed "7.3"))))
+                            (+ (fl 0 55) (* (fl 0 45)
+                                            (sin (+ (* time (fl 2)) (* v_seed "60.0")))))))
+       (set! c (mix c (vec3 (fl 0 96) (fl 0 98) (fl 1)) (* rime (fl 0 85))))
        (local float glint (+ (fl 0 85) (* (fl 0 15) (sin (+ (* time (fl 8)) (* v_seed (fl 40)))))))
        (local float hot (+ (fl 1) (* "1.1" (exp (- (/ (* v_ih v_ih) "50.0"))))))
        (set! gl_FragColor (vec4 (* (* c glint) hot) (* alpha soft)))))))
