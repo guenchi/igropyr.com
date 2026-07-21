@@ -15,16 +15,22 @@
    ("*" (box-sizing border-box))
    ;; the page colour lives on <html> so the fixed z-index:-1 background
    ;; canvas paints above it (root background) yet behind the text
-   (html (-webkit-text-size-adjust (pct 100)) (background (var bg)))
+   (html (-webkit-text-size-adjust (pct 100)) (background (var bg)) (overflow-x hidden))
    (body
     (margin 0) (background transparent) (color (var ink))
     (font-family "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif")
     (line-height (dec 1 70)) (font-size (px 19)))
 
-   ;; the WebGL background: fire -> ice -> GOETEIA, behind everything
+   ;; the WebGL background: fire -> ice -> GOETEIA, behind everything.
+   ;; below the large-screen breakpoint it fills the viewport
    ("#bg"
     (position fixed) (top 0) (left 0) (width (vw 100)) (height (vh 100))
     (z-index -1) (pointer-events none) (opacity (dec 0 50)))
+   ;; on large screens it shrinks to a block bled off the top-right corner,
+   ;; placed like the igropyr site's hero fire
+   (@media "(min-width: 1000px)"
+     ("#bg" (top "-80px") (right "-120px") (left auto) (bottom auto)
+            (width "min(72vw, 1120px)") (height auto) (opacity (dec 0 72))))
 
    (.wrap (max-width (rem 40)) (margin 0 auto) (position relative) (z-index 1)
           (padding (vh 12) (rem 1 50) (vh 16)))

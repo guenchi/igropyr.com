@@ -181,7 +181,7 @@
               (putv (+ o 40) (vx b) (vy b) arr sd 1.0)
               (tri (+ k 1) (+ o 60))))))))
 
-;; ================= GOETEIA text homes (rasterize + sample) ============
+;; ================= word homes: GOETEIA and IGROPYR (rasterize+sample) ==
 ;; a hidden 2d canvas in the same 1120x760 space; lit pixels become homes
 (define hidden (create-element "canvas"))
 (js-set! hidden "width" 1120)
@@ -193,12 +193,12 @@
 (js-set! hctx "textAlign" "center")
 (js-set! hctx "textBaseline" "middle")
 (js-set! hctx "font" "700 200px Georgia, 'Times New Roman', serif")
-(js-method hctx "fillText" "GOETEIA" 560.0 392.0)
 
-(define CAPT 6500)
-(define THOME (fx-alloc! (* CAPT 8)))            ; text homes: x,y pairs
+(define CAPT 7000)
 (define samp-px (fx-alloc! (* 1120 760 4)))
-(define ntext
+(define (sample-word! word home)                 ; -> count of lit pixels
+  (js-method hctx "clearRect" 0 0 1120 760)
+  (js-method hctx "fillText" word 560.0 392.0)
   (let* ((img (js-method hctx "getImageData" 0 0 1120 760))
          (view (js-new (js-get (js-global) "Uint8Array")
                        (js-get (js-get (js-global) "__goeteia_mem") "buffer")
@@ -212,26 +212,41 @@
              ((>= x 1120) (yloop (+ y 3) n))
              ((and (< n CAPT)
                    (> (%mem-u8-ref (+ samp-px (+ (* (+ (* y 1120) x) 4) 3))) 100))
-              (%mem-f32-set! (+ THOME (* n 8)) (fixnum->flonum x))
-              (%mem-f32-set! (+ THOME (+ (* n 8) 4)) (fixnum->flonum y))
+              (%mem-f32-set! (+ home (* n 8)) (fixnum->flonum x))
+              (%mem-f32-set! (+ home (+ (* n 8) 4)) (fixnum->flonum y))
               (xloop (+ x 3) (+ n 1)))
              (else (xloop (+ x 3) n))))))))
+(define GHOME (fx-alloc! (* CAPT 8)))
+(define IHOME (fx-alloc! (* CAPT 8)))
+(define nG (sample-word! "GOETEIA" GHOME))
+(define nI (sample-word! "IGROPYR" IHOME))
+(define pool (if (< nG nI) nI nG))
 
-;; text particle state: pos2 vel2 home2 seed = 28 bytes; each dot STARTS
-;; on a random honeycomb point, so the word grows out of the lattice
-(define TST (fx-alloc! (* ntext 28)))
+;; particle state: pos2 vel2 homeG2 homeI2 hive2 seed = 44 bytes. Each dot
+;; rests on a random honeycomb point (its "dispersed" home, so it scatters
+;; back there between words); spares a word doesn't need park off-screen
+(define (park) (if (fl<? (rnd) 0.5)
+                   (fl- 0.0 (fl+ 60.0 (fl* 80.0 (rnd))))
+                   (fl+ 1180.0 (fl* 80.0 (rnd)))))
+(define WST (fx-alloc! (* pool 44)))
 (let fill ((i 0))
-  (when (< i ntext)
+  (when (< i pool)
     (let* ((p (%fl->fx (fl* (rnd) (fixnum->flonum npoints))))
            (src (+ POS (* p 16)))
-           (o (+ TST (* i 28))))
-      (%mem-f32-set! o (%mem-f32-ref src))               ; pos.x = hive point
-      (%mem-f32-set! (+ o 4) (%mem-f32-ref (+ src 4)))   ; pos.y
-      (%mem-f32-set! (+ o 8) 0.0)                        ; vel
-      (%mem-f32-set! (+ o 12) 0.0)
-      (%mem-f32-set! (+ o 16) (%mem-f32-ref (+ THOME (* i 8))))      ; home.x
-      (%mem-f32-set! (+ o 20) (%mem-f32-ref (+ THOME (+ (* i 8) 4)))) ; home.y
-      (%mem-f32-set! (+ o 24) (rnd)))                    ; seed
+           (hx (%mem-f32-ref src)) (hy (%mem-f32-ref (+ src 4)))
+           (o (+ WST (* i 44))))
+      (%mem-f32-set! o hx) (%mem-f32-set! (+ o 4) hy)     ; pos = hive point
+      (%mem-f32-set! (+ o 8) 0.0) (%mem-f32-set! (+ o 12) 0.0)  ; vel
+      (if (< i nG)
+          (begin (%mem-f32-set! (+ o 16) (%mem-f32-ref (+ GHOME (* i 8))))
+                 (%mem-f32-set! (+ o 20) (%mem-f32-ref (+ GHOME (+ (* i 8) 4)))))
+          (begin (%mem-f32-set! (+ o 16) (park)) (%mem-f32-set! (+ o 20) (fl* 760.0 (rnd)))))
+      (if (< i nI)
+          (begin (%mem-f32-set! (+ o 24) (%mem-f32-ref (+ IHOME (* i 8))))
+                 (%mem-f32-set! (+ o 28) (%mem-f32-ref (+ IHOME (+ (* i 8) 4)))))
+          (begin (%mem-f32-set! (+ o 24) (park)) (%mem-f32-set! (+ o 28) (fl* 760.0 (rnd)))))
+      (%mem-f32-set! (+ o 32) hx) (%mem-f32-set! (+ o 36) hy)   ; hive / dispersed
+      (%mem-f32-set! (+ o 40) (rnd)))                    ; seed
     (fill (+ i 1))))
 
 ;; ================= FIRE: the burning honeycomb (fire.ss) ==============
@@ -448,26 +463,36 @@
   (fx-tf-program!
    '((attribute vec2 a_pos)
      (attribute vec2 a_vel)
-     (attribute vec2 a_home)
+     (attribute vec2 a_homeg)
+     (attribute vec2 a_homei)
+     (attribute vec2 a_hive)
      (attribute float a_seed)
      (uniform float u_dt)
      (uniform float u_t)
-     (uniform float u_asm)
+     (uniform float u_grip)             ; 0 = free (rest at hive), 1 = spring on
+     (uniform float u_form)             ; 0 = dispersed at hive, 1 = formed
+     (uniform float u_word)             ; 0 = GOETEIA, 1 = IGROPYR
      (varying vec2 v_pos)
      (varying vec2 v_vel)
-     (varying vec2 v_home)
+     (varying vec2 v_homeg)
+     (varying vec2 v_homei)
+     (varying vec2 v_hive)
      (varying float v_seed)
      (define (main) void
-       (local vec2 home (+ a_home
-                           (* (vec2 (sin (+ (* u_t "1.3") (* a_seed "6.28")))
-                                    (cos (+ (* u_t "1.7") (* a_seed "6.28"))))
-                              "0.8")))
-       (local vec2 spring (* (- home a_pos) (* (fl 24) u_asm)))
+       (local vec2 wh (mix a_homeg a_homei u_word))
+       (local vec2 target (mix a_hive wh u_form))
+       (set! target (+ target
+                       (* (vec2 (sin (+ (* u_t "1.3") (* a_seed "6.28")))
+                                (cos (+ (* u_t "1.7") (* a_seed "6.28"))))
+                          "0.8")))
+       (local vec2 spring (* (- target a_pos) (* (fl 24) u_grip)))
        (local vec2 vel (* (+ a_vel (* spring u_dt))
                           (max (- (fl 1) (* (fl 8) u_dt)) (fl 0))))
        (set! v_pos (+ a_pos (* vel u_dt)))
        (set! v_vel vel)
-       (set! v_home a_home)
+       (set! v_homeg a_homeg)
+       (set! v_homei a_homei)
+       (set! v_hive a_hive)
        (set! v_seed a_seed)
        (set! gl_Position (vec4 (fl 0) (fl 0) (fl 0) (fl 1)))))
    '((precision mediump float)
@@ -478,32 +503,45 @@
   (fx-program!
    '((attribute vec2 a_pos)
      (attribute vec2 a_vel)
-     (attribute vec2 a_home)
+     (attribute vec2 a_homeg)
+     (attribute vec2 a_homei)
+     (attribute vec2 a_hive)
      (attribute float a_seed)
-     (uniform float alpha)
+     (uniform float u_word)
+     (uniform float u_alpha)
      (varying float v_hx)
      (varying float v_speed)
+     (varying float v_word)
      (define (main) void
        (set! gl_Position (vec4 (- (* (/ a_pos.x (fl 1120)) (fl 2)) (fl 1))
                                (- (fl 1) (* (/ a_pos.y (fl 760)) (fl 2)))
                                (fl 0) (fl 1)))
        (set! gl_PointSize (+ (fl 2 40) (* a_seed (fl 0 90))))
-       (set! v_hx (/ a_home.x (fl 1120)))
-       (set! v_speed (length a_vel))))
+       (local vec2 wh (mix a_homeg a_homei u_word))
+       (set! v_hx (/ wh.x (fl 1120)))
+       (set! v_speed (length a_vel))
+       (set! v_word u_word)))
    '((precision mediump float)
      (varying float v_hx)
      (varying float v_speed)
-     (uniform float alpha)
+     (varying float v_word)
+     (uniform float u_alpha)
      (define (main) void
        (local vec2 pc (- gl_PointCoord (vec2 (fl 0 50) (fl 0 50))))
        (local float d2 (dot pc pc))
-       (local vec3 lapis (vec3 (fl 0 08) (fl 0 31) (fl 0 77)))
-       (local vec3 azure (vec3 (fl 0 28) (fl 0 53) (fl 0 93)))
-       (local vec3 c (mix lapis azure v_hx))
-       (set! c (mix c (vec3 (fl 0 55) (fl 0 78) (fl 1)) (min (* v_speed "0.0035") (fl 0 70))))
+       ;; GOETEIA is lapis->azure; IGROPYR is the igropyr site's orange->amber
+       (local vec3 blue (mix (vec3 (fl 0 08) (fl 0 31) (fl 0 77))
+                             (vec3 (fl 0 28) (fl 0 53) (fl 0 93)) v_hx))
+       (local vec3 warm (mix (vec3 (fl 0 91) (fl 0 35) (fl 0 05))
+                             (vec3 (fl 1) (fl 0 66) (fl 0 20)) v_hx))
+       (local vec3 c (mix blue warm v_word))
+       ;; flight makes them glint toward a lighter tint of their own hue
+       (local vec3 glint (mix (vec3 (fl 0 70) (fl 0 82) (fl 1))
+                              (vec3 (fl 1) (fl 0 88) (fl 0 60)) v_word))
+       (set! c (mix c glint (min (* v_speed "0.0035") (fl 0 65))))
        (local float hot (+ (fl 1) (* "0.6" (smoothstep "40.0" "260.0" v_speed))))
        (set! gl_FragColor
-             (vec4 (* c hot) (* alpha (- (fl 1) (smoothstep (fl 0 04) (fl 0 25) d2)))))))))
+             (vec4 (* c hot) (* u_alpha (- (fl 1) (smoothstep (fl 0 04) (fl 0 25) d2)))))))))
 
 ;; ================= HDR bloom (fire.ss) ================================
 (define scene-t (fx-target-hdr! 1120 760))
@@ -596,8 +634,8 @@
 (cmd-bind-buffer! fill-buf) (cmd-buffer-data! FILLV (* nfillv 20))
 (cmd-bind-buffer! emb-a) (cmd-buffer-data! EMB (* NEMBER 36))
 (cmd-bind-buffer! emb-b) (cmd-buffer-data! EMB (* NEMBER 36))
-(cmd-bind-buffer! word-a) (cmd-buffer-data! TST (* ntext 28))
-(cmd-bind-buffer! word-b) (cmd-buffer-data! TST (* ntext 28))
+(cmd-bind-buffer! word-a) (cmd-buffer-data! WST (* pool 44))
+(cmd-bind-buffer! word-b) (cmd-buffer-data! WST (* pool 44))
 (cmd-flush!)
 
 ;; ================= the timeline =======================================
@@ -606,17 +644,44 @@
 (define TRAVEL (fl+ maxd 380.0))
 (define PACE 1.4)
 (define FIRE-END (fl/ CYCLE PACE))          ; ashes gone by here (~6.1s)
-(define PAUSE 3.0)
+(define PAUSE 1.0)                        ; ashes gone -> ice starts (was 3s)
 (define ICE-START (fl+ FIRE-END PAUSE))
-(define ICE-DUR 5.5)                     ; the line reaches the far corner here
-(define ICE-SPEED (fl/ maxd ICE-DUR))    ; front-distance per second
-(define ICE-LAG (fl* ICE-SPEED 1.0))     ; cells freeze one second behind it
+(define ICE-DUR 5.5)                      ; the line reaches the far corner here
+(define ICE-SPEED (fl/ maxd ICE-DUR))     ; front-distance per second
+(define ICE-LAG (fl* ICE-SPEED 1.0))      ; cells freeze one second behind it
 (define ICE-CAP (fl+ maxd (fl+ ICE-LAG 250.0)))    ; grow until the last cell fills
 (define ICE-HOLD (fl+ 1.2 (fl/ 250.0 ICE-SPEED)))  ; front-done -> everything frozen
-(define ASM-START (fl+ ICE-START (fl+ ICE-DUR ICE-HOLD)))
-(define ASM-DUR 2.6)
+(define WORD-START (fl+ ICE-START (fl+ ICE-DUR ICE-HOLD)))
+;; the word era, relative to WORD-START: assemble GOETEIA, hold, disperse,
+;; gap, assemble IGROPYR, hold, disperse, gap -- then the whole cycle loops
+(define A-IN 2.6) (define A-HOLD 2.6) (define A-OUT 1.6) (define GAP1 0.7)
+(define B-IN 2.4) (define B-HOLD 2.6) (define B-OUT 1.6) (define GAP2 1.2)
+(define WA1 A-IN)                          ; GOETEIA formed
+(define WA2 (fl+ WA1 A-HOLD))              ; start dispersing GOETEIA
+(define WA3 (fl+ WA2 A-OUT))               ; GOETEIA dispersed
+(define WA4 (fl+ WA3 GAP1))                ; start assembling IGROPYR
+(define WA5 (fl+ WA4 B-IN))                ; IGROPYR formed
+(define WA6 (fl+ WA5 B-HOLD))              ; start dispersing IGROPYR
+(define WA7 (fl+ WA6 B-OUT))               ; IGROPYR dispersed
+(define WORD-DUR (fl+ WA7 GAP2))
+(define TOTAL (fl+ WORD-START WORD-DUR))   ; one full loop
 
 (define (clamp01 x) (if (fl<? x 0.0) 0.0 (if (fl<? 1.0 x) 1.0 x)))
+(define (seg a b w) (clamp01 (fl/ (fl- w a) (fl- b a))))  ; ramp 0->1 over [a,b]
+
+;; the word "form" factor (0 dispersed at hive <-> 1 formed) at word-time w
+(define (word-form w)
+  (cond ((fl<? w WA1) (seg 0.0 WA1 w))            ; GOETEIA assemble
+        ((fl<? w WA2) 1.0)                        ; hold
+        ((fl<? w WA3) (fl- 1.0 (seg WA2 WA3 w)))  ; disperse
+        ((fl<? w WA4) 0.0)                        ; gap
+        ((fl<? w WA5) (seg WA4 WA5 w))            ; IGROPYR assemble
+        ((fl<? w WA6) 1.0)                        ; hold
+        ((fl<? w WA7) (fl- 1.0 (seg WA6 WA7 w)))  ; disperse
+        (else 0.0)))
+;; which word (0 GOETEIA, 1 IGROPYR); flips in the dispersed gap between them
+(define (word-which w) (if (fl<? w (fl+ WA3 (fl* GAP1 0.5))) 0.0 1.0))
+(define cyc-base 0.0)
 
 (define embufs (cons emb-a emb-b))
 (define wbufs (cons word-a word-b))
@@ -624,18 +689,26 @@
 (fx-loop!
  (lambda (t dt)
    (let ((dtc (if (fl<? dt 0.05) dt 0.05)))
+     ;; loop the whole sequence: wrap the clock at TOTAL. The dispersed
+     ;; state targets the hive points, so the dots are already home at the
+     ;; seam and the next cycle starts clean without any buffer reset.
+     (when (fl<? (fl+ cyc-base TOTAL) t) (set! cyc-base (fl+ cyc-base TOTAL)))
      ;; ---- phase-driven controls ----
-     (let* ((firing (fl<? t FIRE-END))
-            (tw (let ((x (fl* t PACE))) (if (fl<? CYCLE x) CYCLE x)))
+     (let* ((tc (fl- t cyc-base))
+            (firing (fl<? tc FIRE-END))
+            (tw (let ((x (fl* tc PACE))) (if (fl<? CYCLE x) CYCLE x)))
             (front (fl* (fl/ tw CYCLE) TRAVEL))
             (fade (clamp01 (fl- 1.0 (fl/ (fl- front (fl+ maxd 60.0)) 300.0))))
-            (ice (if (fl<? t ICE-START) 0.0
-                     (let ((x (fl* ICE-SPEED (fl- t ICE-START))))
+            (ice (if (fl<? tc ICE-START) 0.0
+                     (let ((x (fl* ICE-SPEED (fl- tc ICE-START))))
                        (if (fl<? ICE-CAP x) ICE-CAP x))))
-            (asm (clamp01 (fl/ (fl- t ASM-START) ASM-DUR)))
-            ;; the hive hands off to the word as the word assembles
-            (hive-a (fl- 1.0 asm))
-            (word-al asm))
+            (wt (fl- tc WORD-START))              ; word-era time (<0 before it)
+            (in-word (fl<? 0.0 wt))
+            (u-grip (if in-word 1.0 0.0))
+            (u-form (if in-word (word-form wt) 0.0))
+            (u-word (if in-word (word-which wt) 0.0))
+            ;; the hive fades out as the first word (GOETEIA) assembles
+            (hive-a (if in-word (clamp01 (fl- 1.0 (fl/ wt A-IN))) 1.0)))
        ;; ---- step the GPU particle systems ----
        (when firing
          (fx-use! ember-update (car embufs))
@@ -645,10 +718,12 @@
          (cmd-tf-begin!) (cmd-draw-arrays! GL-POINTS 0 NEMBER) (cmd-tf-end!))
        (fx-use! word-update (car wbufs))
        (fx-uniform! word-update 'u_dt dtc)
-       (fx-uniform! word-update 'u_t t)
-       (fx-uniform! word-update 'u_asm asm)
+       (fx-uniform! word-update 'u_t tc)
+       (fx-uniform! word-update 'u_grip u-grip)
+       (fx-uniform! word-update 'u_form u-form)
+       (fx-uniform! word-update 'u_word u-word)
        (cmd-tf-buffer! (cdr wbufs))
-       (cmd-tf-begin!) (cmd-draw-arrays! GL-POINTS 0 ntext) (cmd-tf-end!)
+       (cmd-tf-begin!) (cmd-draw-arrays! GL-POINTS 0 pool) (cmd-tf-end!)
        ;; ---- render the scene into the HDR target ----
        (cmd-unbind-texture! 0)
        (cmd-unbind-texture! 1)
@@ -667,27 +742,28 @@
          (fx-uniform! ember-draw 'front front)
          (fx-uniform! ember-draw 'time tw)
          (cmd-draw-arrays! GL-POINTS 0 NEMBER))
-        ;; movements 3 & 4: ice fades as the word arrives
-        ((fl<? ICE-START t)
+        ;; movements 2-5: ice + frost, then GOETEIA and IGROPYR
+        ((fl<? ICE-START tc)
          (when (fl<? 0.004 hive-a)
            ;; the cells frost over first (behind the lines)
            (when (> nfillv 0)
              (fx-use! frost-p fill-buf)
              (fx-uniform! frost-p 'ice ice)
              (fx-uniform! frost-p 'lag ICE-LAG)
-             (fx-uniform! frost-p 'time t)
+             (fx-uniform! frost-p 'time tc)
              (fx-uniform! frost-p 'alpha hive-a)
              (cmd-draw-arrays! GL-TRIANGLES 0 nfillv))
            ;; then the ice lines on top
            (fx-use! ice-p fuse-buf)
            (fx-uniform! ice-p 'ice ice)
-           (fx-uniform! ice-p 'time t)
+           (fx-uniform! ice-p 'time tc)
            (fx-uniform! ice-p 'alpha hive-a)
            (cmd-draw-arrays! GL-POINTS 0 npoints))
-         (when (fl<? 0.004 word-al)
+         (when (fl<? 0.004 u-form)
            (fx-use! word-draw (cdr wbufs))
-           (fx-uniform! word-draw 'alpha word-al)
-           (cmd-draw-arrays! GL-POINTS 0 ntext))))
+           (fx-uniform! word-draw 'u_word u-word)
+           (fx-uniform! word-draw 'u_alpha u-form)
+           (cmd-draw-arrays! GL-POINTS 0 pool))))
        ;; ---- bloom: what burns past white becomes a halo ----
        (cmd-blend! 'off)
        (glow-pass! bright-q glow-a (fx-target-texture scene-t)
