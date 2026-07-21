@@ -82,7 +82,7 @@
         (hr (@ (class "rule")))
 
         (p (@ (class "lead"))
-           "The Igropyr project is now two: "
+           "The Igropyr project contains two parts: "
            (a (@ (href "https://igropyr.dev")) "Igropyr")
            " on the server, and "
            (a (@ (href "https://goeteia.dev")) "Goeteia")
