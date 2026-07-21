@@ -13,13 +13,20 @@
     (--accent "#e8590c") (--line "#e7e0d6"))
 
    ("*" (box-sizing border-box))
-   (html (-webkit-text-size-adjust (pct 100)))
+   ;; the page colour lives on <html> so the fixed z-index:-1 background
+   ;; canvas paints above it (root background) yet behind the text
+   (html (-webkit-text-size-adjust (pct 100)) (background (var bg)))
    (body
-    (margin 0) (background (var bg)) (color (var ink))
+    (margin 0) (background transparent) (color (var ink))
     (font-family "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif")
     (line-height (dec 1 70)) (font-size (px 19)))
 
-   (.wrap (max-width (rem 40)) (margin 0 auto)
+   ;; the WebGL background: fire -> ice -> GOETEIA, behind everything
+   ("#bg"
+    (position fixed) (top 0) (left 0) (width (vw 100)) (height (vh 100))
+    (z-index -1) (pointer-events none) (opacity (dec 0 50)))
+
+   (.wrap (max-width (rem 40)) (margin 0 auto) (position relative) (z-index 1)
           (padding (vh 12) (rem 1 50) (vh 16)))
    (.mark (font-size (rem 2 60)) (color (var accent)) (line-height 1)
           (margin-bottom (rem 1 50)))
@@ -61,6 +68,7 @@
                (content "How Igropyr began: the search for a Scheme web server built for production, from a libuv prototype to an Erlang-style rebuild.")))
       (style ,(raw (css->string styles))))
      (body
+      (canvas (@ (id "bg") (width "1120") (height "760")))
       (main (@ (class "wrap"))
         (div (@ (class "mark")) "λ")
         (h1 "Igropyr")
@@ -135,7 +143,9 @@
 
         (footer
           (a (@ (href "https://github.com/guenchi/Igropyr")) "GitHub")
-          " · Built in pure Scheme")))))
+          " · Built in pure Scheme"))
+      (script (@ (type "module") (src "boot.js")))
+      )))
 
 (call-with-output-file "index.html"
   (lambda (p) (display (html->document page) p)))
