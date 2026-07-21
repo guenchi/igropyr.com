@@ -134,8 +134,8 @@
            "client.")
 
         (p "By now Igropyr carries everything a modern web server is "
-           "expected to have: JWT, a self-forming cluster, hot code "
-           "swapping, non-blocking Redis and database clients, and even "
+           "expected to have: JWT, non-blocking Redis and database "
+           "clients, a self-forming cluster, hot code swapping, and even "
            "BLAS-accelerated vector search.")
 
         (p "Goeteia came from another daydream — writing the front end in "
