@@ -330,21 +330,16 @@
        (if (> r2 (fl 0 25)) (discard))
        (local float soft (- (fl 1) (* r2 (fl 4))))
        (local float t (clamp (/ v_ih (fl 120)) (fl 0) (fl 1)))
-       (local vec3 crest (vec3 (fl 0 80) (fl 0 94) (fl 1)))
-       (local vec3 azure (vec3 (fl 0 28) (fl 0 53) (fl 0 93)))
-       (local vec3 lapis (vec3 (fl 0 08) (fl 0 31) (fl 0 77)))
-       (local vec3 c (mix crest azure (smoothstep (fl 0) (fl 0 25) t)))
-       (set! c (mix c lapis (smoothstep (fl 0 25) (fl 1) t)))
-       ;; white rime settles on the frozen lattice -- scattered, twinkling
-       ;; crystals over the hardened Goeteia blue
-       (local float rime (* (* (smoothstep (fl 0 45) (fl 1) t)
-                               (step (fl 0 60) (fract (* v_seed "7.3"))))
-                            (+ (fl 0 55) (* (fl 0 45)
-                                            (sin (+ (* time (fl 2)) (* v_seed "60.0")))))))
-       (set! c (mix c (vec3 (fl 0 96) (fl 0 98) (fl 1)) (* rime (fl 0 85))))
-       (local float glint (+ (fl 0 85) (* (fl 0 15) (sin (+ (* time (fl 8)) (* v_seed (fl 40)))))))
+       ;; the edge line freezes from an icy crest to a hard frost white
+       (local vec3 crest (vec3 (fl 0 75) (fl 0 90) (fl 1)))
+       (local vec3 white (vec3 (fl 0 97) (fl 0 99) (fl 1)))
+       (local vec3 c (mix crest white (smoothstep (fl 0) (fl 0 50) t)))
+       (local float glint (+ (fl 0 88) (* (fl 0 12) (sin (+ (* time (fl 8)) (* v_seed (fl 40)))))))
        (local float hot (+ (fl 1) (* "1.1" (exp (- (/ (* v_ih v_ih) "50.0"))))))
-       (set! gl_FragColor (vec4 (* (* c glint) hot) (* alpha soft)))))))
+       ;; the frozen edge settles to a faint, colourless line; only the
+       ;; moving freezing crest stays bright
+       (local float ea (* soft (mix (fl 1) (fl 0 30) (smoothstep (fl 0 10) (fl 0 55) t))))
+       (set! gl_FragColor (vec4 (* (* c glint) hot) (* alpha ea)))))))
 
 ;; ================= FROST: the cells freeze a beat behind the line ======
 ;; a translucent triangle-fan fill per hexagon, blue-white, fading in
