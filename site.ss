@@ -58,6 +58,9 @@
     (font-size (rem 0 85)) (color (var dim)))
    ("footer a" (color (var accent)) (text-decoration none))
    ("footer a:hover" (text-decoration underline))
+   ;; stacks "pure Scheme" over "Powered by Goeteia." with both lines left-
+   ;; aligned, so "Powered" sits directly under "pure"
+   (".foot-stack" (display inline-block) (vertical-align top))
    (@media "(max-width: 480px)"
      (body (font-size (px 18)))
      (h1 (font-size (rem 2 10)))
@@ -155,7 +158,10 @@
 
         (footer
           (a (@ (href "https://github.com/guenchi/Igropyr")) "GitHub")
-          " · Built in pure Scheme"))
+          " · Built in "
+          (span (@ (class "foot-stack"))
+            "pure Scheme" (br)
+            "Powered by " (a (@ (href "https://goeteia.dev")) "Goeteia") ".")))
       (script (@ (type "module") (src "boot.js")))
       )))
 
