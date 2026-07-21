@@ -74,6 +74,7 @@
      (head
       (meta (@ (charset "utf-8")))
       (meta (@ (name "viewport") (content "width=device-width, initial-scale=1")))
+      (link (@ (rel "icon") (type "image/svg+xml") (href "favicon.svg")))
       (title "Igropyr — Origins")
       (meta (@ (name "description")
                (content "How Igropyr began: the search for a Scheme web server built for production, from a libuv prototype to an Erlang-style rebuild.")))
