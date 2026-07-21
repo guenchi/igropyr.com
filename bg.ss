@@ -648,7 +648,7 @@
 (define ICE-START (fl+ FIRE-END PAUSE))
 (define ICE-DUR 5.5)                      ; the line reaches the far corner here
 (define ICE-SPEED (fl/ maxd ICE-DUR))     ; front-distance per second
-(define ICE-LAG (fl* ICE-SPEED 1.0))      ; cells freeze one second behind it
+(define ICE-LAG (fl* ICE-SPEED 0.5))      ; cells freeze half a second behind it
 (define ICE-CAP (fl+ maxd (fl+ ICE-LAG 250.0)))    ; grow until the last cell fills
 (define ICE-HOLD (fl+ 1.2 (fl/ 250.0 ICE-SPEED)))  ; front-done -> everything frozen
 (define WORD-START (fl+ ICE-START (fl+ ICE-DUR ICE-HOLD)))
