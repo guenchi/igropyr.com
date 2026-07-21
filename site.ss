@@ -95,8 +95,9 @@
 
         (p "Back then, and still today, Scheme web servers stop at raw "
            "string concatenation to build a request and its response. "
-           "They lack the modern conveniences — proper JSON responses and "
-           "the like — that a real application backend needs.")
+           "They lack the modern conveniences — proper JSON responses, "
+           "concurrency, asynchrony, and the like — that a real application "
+           "backend needs.")
 
         (p "So I improvised. I tried Apache calling out to CGI. Then, "
            "inspired by Node, I wrote a first thin wrapper over libuv. "
