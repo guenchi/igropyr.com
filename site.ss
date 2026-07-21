@@ -152,9 +152,11 @@
            "but in the end a Scheme compiler built on WebAssembly turned "
            "out to be the better choice.")
 
-        (p "Goeteia, for its part, is heavily optimized for 3D: it can "
-           "compile dazzling web effects down to a little over a hundred "
-           "kilobytes, and it supports programming web games. It also "
+        (p "Goeteia, for its part, is a compiler just 50 kB and heavily "
+           "optimized for 3D. It renders dazzling web effects from Scheme "
+           "straight to the page on the fly, or precompiles them for more "
+           "speed and optimization, and it supports programming web games. "
+           "It also "
            "takes a fresh approach to the DOM — in this "
            "post-virtual-DOM-tree era, a distinctly Scheme one: "
            "macro-based DOM state management, and pretext effects.")
