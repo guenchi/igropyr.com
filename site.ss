@@ -133,6 +133,11 @@
            "across the wire, held open between the server and the remote "
            "client.")
 
+        (p "By now Igropyr carries everything a modern web server is "
+           "expected to have: a self-forming cluster, non-blocking Redis "
+           "and database clients, JWT, and even BLAS-accelerated vector "
+           "search.")
+
         (p "Goeteia came from another daydream — writing the front end in "
            "pure Scheme as well. I tried Scheme-to-JavaScript compilers, "
            "but in the end a Scheme compiler built on WebAssembly turned "
