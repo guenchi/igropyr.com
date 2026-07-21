@@ -105,6 +105,82 @@
         (let ((d (vector-ref dist i)))
           (mx (+ i 1) (if (and (fl<? d INF) (fl<? m d)) d m))))))
 
+;; ---- reconstruct the hexagon cells, for the frost that freezes them ----
+;; A planar face walk over the edge graph recovers each hexagon. Sort every
+;; vertex's neighbours by a trig-free pseudo-angle (monotone in [0,4) with
+;; the CCW angle), then trace faces by always turning to the clockwise
+;; predecessor; the 6-cycles are the cells.
+(define (pang i j)
+  (let* ((dx (fl- (vx j) (vx i))) (dy (fl- (vy j) (vy i)))
+         (ax (if (fl<? dx 0.0) (fl- 0.0 dx) dx))
+         (ay (if (fl<? dy 0.0) (fl- 0.0 dy) dy))
+         (s (fl+ ax ay))
+         (u (if (fl<? s 0.001) 0.0 (fl/ dy s))))
+    (cond ((fl<? dx 0.0) (fl- 2.0 u))
+          ((fl<? dy 0.0) (fl+ 4.0 u))
+          (else u))))
+(define (insert-nbr i x sorted)
+  (cond ((null? sorted) (list x))
+        ((fl<? (pang i x) (pang i (car sorted))) (cons x sorted))
+        (else (cons (car sorted) (insert-nbr i x (cdr sorted))))))
+(define adjv (make-vector V #f))
+(do ((i 0 (+ i 1))) ((= i V))
+  (vector-set! adjv i
+    (list->vector
+      (let s ((xs (vector-ref adj-n i)) (acc '()))
+        (if (null? xs) acc (s (cdr xs) (insert-nbr i (car xs) acc)))))))
+(define (nbr-index v u)
+  (let ((nb (vector-ref adjv v)))
+    (let loop ((k 0)) (if (= (vector-ref nb k) u) k (loop (+ k 1))))))
+(define seen (make-vector V '()))
+(define hexes '())
+(do ((u 0 (+ u 1))) ((= u V))
+  (for-each
+   (lambda (v0)
+     (unless (memv v0 (vector-ref seen u))
+       (let loop ((pu u) (pv v0) (acc '()) (n 0))
+         (cond
+          ((> n 7) #f)                          ; the outer face: too long, drop
+          ((and (> n 0) (= pu u) (= pv v0))
+           (when (= n 6) (set! hexes (cons acc hexes))))
+          (else
+           (vector-set! seen pu (cons pv (vector-ref seen pu)))
+           (let* ((nb (vector-ref adjv pv)) (deg (vector-length nb))
+                  (iu (nbr-index pv pu))
+                  (iw (let ((z (- iu 1))) (if (< z 0) (+ z deg) z)))
+                  (w (vector-ref nb iw)))
+             (loop pv w (cons pv acc) (+ n 1))))))))
+   (vector-ref adj-n u)))
+(define nhex (length hexes))
+
+;; build a triangle-fan mesh of the cells: per vertex (x, y, arrival, seed,
+;; edge) where arrival is the cell's (its last-drawn corner, so it fills
+;; only once fully outlined), edge is 0 at the centre and 1 at the rim
+(define nfillv (* nhex 18))
+(define FILLV (fx-alloc! (* (if (> nfillv 0) nfillv 1) 20)))
+(define (putv o x y arr sd edge)
+  (%mem-f32-set! o x) (%mem-f32-set! (+ o 4) y)
+  (%mem-f32-set! (+ o 8) arr) (%mem-f32-set! (+ o 12) sd)
+  (%mem-f32-set! (+ o 16) edge))
+(let build ((hs hexes) (o FILLV))
+  (when (pair? hs)
+    (let* ((hv (list->vector (car hs)))
+           (cx (let l ((k 0) (a 0.0)) (if (= k 6) (fl/ a 6.0) (l (+ k 1) (fl+ a (vx (vector-ref hv k)))))))
+           (cy (let l ((k 0) (a 0.0)) (if (= k 6) (fl/ a 6.0) (l (+ k 1) (fl+ a (vy (vector-ref hv k)))))))
+           (arr (let l ((k 0) (m 0.0))
+                  (if (= k 6) m
+                      (let ((d (vector-ref dist (vector-ref hv k))))
+                        (l (+ k 1) (if (fl<? m d) d m))))))
+           (sd (rnd)))
+      (let tri ((k 0) (o o))
+        (if (= k 6)
+            (build (cdr hs) o)
+            (let* ((a (vector-ref hv k)) (b (vector-ref hv (if (= k 5) 0 (+ k 1)))))
+              (putv o cx cy arr sd 0.0)
+              (putv (+ o 20) (vx a) (vy a) arr sd 1.0)
+              (putv (+ o 40) (vx b) (vy b) arr sd 1.0)
+              (tri (+ k 1) (+ o 60))))))))
+
 ;; ================= GOETEIA text homes (rasterize + sample) ============
 ;; a hidden 2d canvas in the same 1120x760 space; lit pixels become homes
 (define hidden (create-element "canvas"))
@@ -247,6 +323,43 @@
        (local float glint (+ (fl 0 85) (* (fl 0 15) (sin (+ (* time (fl 8)) (* v_seed (fl 40)))))))
        (local float hot (+ (fl 1) (* "1.1" (exp (- (/ (* v_ih v_ih) "50.0"))))))
        (set! gl_FragColor (vec4 (* (* c glint) hot) (* alpha soft)))))))
+
+;; ================= FROST: the cells freeze a beat behind the line ======
+;; a translucent triangle-fan fill per hexagon, blue-white, fading in
+;; only once (ice - cell arrival) has passed the one-second lag
+(define frost-p
+  (fx-program!
+   '((attribute vec2 a_pos)
+     (attribute vec3 a_meta)                ; arrival, seed, edge
+     (uniform float ice)
+     (uniform float lag)
+     (varying float v_fill)
+     (varying float v_edge)
+     (varying float v_seed)
+     (define (main) void
+       (local vec2 c (vec2 (- (* (/ a_pos.x (fl 1120)) (fl 2)) (fl 1))
+                           (- (fl 1) (* (/ a_pos.y (fl 760)) (fl 2)))))
+       (set! gl_Position (vec4 c (fl 0) (fl 1)))
+       (set! v_fill (smoothstep lag (+ lag (fl 150)) (- ice a_meta.x)))
+       (set! v_edge a_meta.z)
+       (set! v_seed a_meta.y)))
+   '((precision mediump float)
+     (varying float v_fill)
+     (varying float v_edge)
+     (varying float v_seed)
+     (uniform float time)
+     (uniform float alpha)
+     (define (main) void
+       (if (< v_fill (fl 0 01)) (discard))
+       ;; a pale icy blue at the frosted centre deepening to Goeteia blue at
+       ;; the rim -- kept blue (not white) so the freeze reads on a light page
+       (local vec3 icy (vec3 (fl 0 62) (fl 0 80) (fl 0 99)))
+       (local vec3 blue (vec3 (fl 0 30) (fl 0 52) (fl 0 92)))
+       (local vec3 c (mix icy blue v_edge))
+       (local float sh (+ (fl 0 86) (* (fl 0 14) (sin (+ (* time (fl 3)) (* v_seed (fl 30)))))))
+       ;; a touch of feather at the rim so neighbouring cells don't hard-tile
+       (local float a (* v_fill (- (fl 1) (* v_edge (fl 0 30)))))
+       (set! gl_FragColor (vec4 (* c sh) (* (* a (fl 0 78)) alpha)))))))
 
 ;; ================= embers (fire.ss, transform feedback) ===============
 (define NEMBER 3000)
@@ -473,12 +586,14 @@
 
 ;; ================= buffers ============================================
 (define fuse-buf (fx-buffer!))
+(define fill-buf (fx-buffer!))
 (define emb-a (fx-buffer!))
 (define emb-b (fx-buffer!))
 (define word-a (fx-buffer!))
 (define word-b (fx-buffer!))
 (cmd-begin!)
 (cmd-bind-buffer! fuse-buf) (cmd-buffer-data! POS (* npoints 16))
+(cmd-bind-buffer! fill-buf) (cmd-buffer-data! FILLV (* nfillv 20))
 (cmd-bind-buffer! emb-a) (cmd-buffer-data! EMB (* NEMBER 36))
 (cmd-bind-buffer! emb-b) (cmd-buffer-data! EMB (* NEMBER 36))
 (cmd-bind-buffer! word-a) (cmd-buffer-data! TST (* ntext 28))
@@ -493,9 +608,11 @@
 (define FIRE-END (fl/ CYCLE PACE))          ; ashes gone by here (~6.1s)
 (define PAUSE 3.0)
 (define ICE-START (fl+ FIRE-END PAUSE))
-(define ICE-DUR 5.5)
-(define ICE-MAX (fl+ maxd 120.0))       ; cover the whole lattice like the fire
-(define ICE-HOLD 1.3)
+(define ICE-DUR 5.5)                     ; the line reaches the far corner here
+(define ICE-SPEED (fl/ maxd ICE-DUR))    ; front-distance per second
+(define ICE-LAG (fl* ICE-SPEED 1.0))     ; cells freeze one second behind it
+(define ICE-CAP (fl+ maxd (fl+ ICE-LAG 250.0)))    ; grow until the last cell fills
+(define ICE-HOLD (fl+ 1.2 (fl/ 250.0 ICE-SPEED)))  ; front-done -> everything frozen
 (define ASM-START (fl+ ICE-START (fl+ ICE-DUR ICE-HOLD)))
 (define ASM-DUR 2.6)
 
@@ -513,7 +630,8 @@
             (front (fl* (fl/ tw CYCLE) TRAVEL))
             (fade (clamp01 (fl- 1.0 (fl/ (fl- front (fl+ maxd 60.0)) 300.0))))
             (ice (if (fl<? t ICE-START) 0.0
-                     (fl* (clamp01 (fl/ (fl- t ICE-START) ICE-DUR)) ICE-MAX)))
+                     (let ((x (fl* ICE-SPEED (fl- t ICE-START))))
+                       (if (fl<? ICE-CAP x) ICE-CAP x))))
             (asm (clamp01 (fl/ (fl- t ASM-START) ASM-DUR)))
             ;; the hive hands off to the word as the word assembles
             (hive-a (fl- 1.0 asm))
@@ -552,6 +670,15 @@
         ;; movements 3 & 4: ice fades as the word arrives
         ((fl<? ICE-START t)
          (when (fl<? 0.004 hive-a)
+           ;; the cells frost over first (behind the lines)
+           (when (> nfillv 0)
+             (fx-use! frost-p fill-buf)
+             (fx-uniform! frost-p 'ice ice)
+             (fx-uniform! frost-p 'lag ICE-LAG)
+             (fx-uniform! frost-p 'time t)
+             (fx-uniform! frost-p 'alpha hive-a)
+             (cmd-draw-arrays! GL-TRIANGLES 0 nfillv))
+           ;; then the ice lines on top
            (fx-use! ice-p fuse-buf)
            (fx-uniform! ice-p 'ice ice)
            (fx-uniform! ice-p 'time t)
