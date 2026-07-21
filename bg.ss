@@ -198,7 +198,7 @@
 (define samp-px (fx-alloc! (* 1120 760 4)))
 (define (sample-word! word home)                 ; -> count of lit pixels
   (js-method hctx "clearRect" 0 0 1120 760)
-  (js-method hctx "fillText" word 560.0 392.0)
+  (js-method hctx "fillText" word 520.0 392.0)     ; nudged left of centre
   (let* ((img (js-method hctx "getImageData" 0 0 1120 760))
          (view (js-new (js-get (js-global) "Uint8Array")
                        (js-get (js-get (js-global) "__goeteia_mem") "buffer")
