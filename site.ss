@@ -34,6 +34,12 @@
    (@media "(min-width: 1000px)"
      ("#bg" (top "-80px") (right "-120px") (left auto) (bottom auto)
             (width "min(72vw, 1120px)") (height auto) (opacity (dec 0 72))))
+   ;; on phones the animation fills the top of the page (aspect kept) like
+   ;; the igropyr site's hero, instead of cover-zooming the whole viewport
+   (@media "(max-width: 700px)"
+     ("#bg" (position absolute) (top 0) (left (pct 50)) (right auto) (bottom auto)
+            (transform "translateX(-50%)") (width "160vw") (height auto)
+            (object-fit fill)))
 
    (.wrap (max-width (rem 40)) (margin 0 auto) (position relative) (z-index 1)
           (padding (vh 12) (rem 1 50) (vh 16)))
