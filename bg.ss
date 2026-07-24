@@ -109,7 +109,7 @@
 ;; instead of filling the cells, drop many crystals at random honeycomb
 ;; points; each inherits that point's arrival (so it blooms after the front
 ;; passes) and carries its own seed for a distinct shape, size and rotation
-(define NFLOWER 520)
+(define NFLOWER 300)
 (define FLOW (fx-alloc! (* NFLOWER 16)))        ; x, y, arrival, seed
 (let seedf ((i 0))
   (when (< i NFLOWER)
