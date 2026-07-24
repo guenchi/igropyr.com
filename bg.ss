@@ -122,6 +122,81 @@
       (%mem-f32-set! (+ o 12) (rnd)))                     ; seed
     (seedf (+ i 1))))
 
+;; ---- reconstruct the hexagon cells, for the frozen-region fill ----
+;; A planar face walk over the edge graph recovers each hexagon. Sort every
+;; vertex's neighbours by a trig-free pseudo-angle (monotone in [0,4) with
+;; the CCW angle), then trace faces by always turning to the clockwise
+;; predecessor; the 6-cycles are the cells.
+(define (pang i j)
+  (let* ((dx (fl- (vx j) (vx i))) (dy (fl- (vy j) (vy i)))
+         (ax (if (fl<? dx 0.0) (fl- 0.0 dx) dx))
+         (ay (if (fl<? dy 0.0) (fl- 0.0 dy) dy))
+         (s (fl+ ax ay))
+         (u (if (fl<? s 0.001) 0.0 (fl/ dy s))))
+    (cond ((fl<? dx 0.0) (fl- 2.0 u))
+          ((fl<? dy 0.0) (fl+ 4.0 u))
+          (else u))))
+(define (insert-nbr i x sorted)
+  (cond ((null? sorted) (list x))
+        ((fl<? (pang i x) (pang i (car sorted))) (cons x sorted))
+        (else (cons (car sorted) (insert-nbr i x (cdr sorted))))))
+(define adjv (make-vector V #f))
+(do ((i 0 (+ i 1))) ((= i V))
+  (vector-set! adjv i
+    (list->vector
+      (let s ((xs (vector-ref adj-n i)) (acc '()))
+        (if (null? xs) acc (s (cdr xs) (insert-nbr i (car xs) acc)))))))
+(define (nbr-index v u)
+  (let ((nb (vector-ref adjv v)))
+    (let loop ((k 0)) (if (= (vector-ref nb k) u) k (loop (+ k 1))))))
+(define seen (make-vector V '()))
+(define hexes '())
+(do ((u 0 (+ u 1))) ((= u V))
+  (for-each
+   (lambda (v0)
+     (unless (memv v0 (vector-ref seen u))
+       (let loop ((pu u) (pv v0) (acc '()) (n 0))
+         (cond
+          ((> n 7) #f)                          ; the outer face: too long, drop
+          ((and (> n 0) (= pu u) (= pv v0))
+           (when (= n 6) (set! hexes (cons acc hexes))))
+          (else
+           (vector-set! seen pu (cons pv (vector-ref seen pu)))
+           (let* ((nb (vector-ref adjv pv)) (deg (vector-length nb))
+                  (iu (nbr-index pv pu))
+                  (iw (let ((z (- iu 1))) (if (< z 0) (+ z deg) z)))
+                  (w (vector-ref nb iw)))
+             (loop pv w (cons pv acc) (+ n 1))))))))
+   (vector-ref adj-n u)))
+(define nhex (length hexes))
+
+;; a triangle-fan mesh of the cells: per vertex (x, y, arrival, seed, edge)
+;; where arrival is the cell's last corner and edge is 0 centre / 1 rim
+(define nfillv (* nhex 18))
+(define FILLV (fx-alloc! (* (if (> nfillv 0) nfillv 1) 20)))
+(define (putv o x y arr sd edge)
+  (%mem-f32-set! o x) (%mem-f32-set! (+ o 4) y)
+  (%mem-f32-set! (+ o 8) arr) (%mem-f32-set! (+ o 12) sd)
+  (%mem-f32-set! (+ o 16) edge))
+(let build ((hs hexes) (o FILLV))
+  (when (pair? hs)
+    (let* ((hv (list->vector (car hs)))
+           (cx (let l ((k 0) (a 0.0)) (if (= k 6) (fl/ a 6.0) (l (+ k 1) (fl+ a (vx (vector-ref hv k)))))))
+           (cy (let l ((k 0) (a 0.0)) (if (= k 6) (fl/ a 6.0) (l (+ k 1) (fl+ a (vy (vector-ref hv k)))))))
+           (arr (let l ((k 0) (m 0.0))
+                  (if (= k 6) m
+                      (let ((d (vector-ref dist (vector-ref hv k))))
+                        (l (+ k 1) (if (fl<? m d) d m))))))
+           (sd (rnd)))
+      (let tri ((k 0) (o o))
+        (if (= k 6)
+            (build (cdr hs) o)
+            (let* ((a (vector-ref hv k)) (b (vector-ref hv (if (= k 5) 0 (+ k 1)))))
+              (putv o cx cy arr sd 0.0)
+              (putv (+ o 20) (vx a) (vy a) arr sd 1.0)
+              (putv (+ o 40) (vx b) (vy b) arr sd 1.0)
+              (tri (+ k 1) (+ o 60))))))))
+
 ;; ================= word homes: GOETEIA and IGROPYR (rasterize+sample) ==
 ;; a hidden 2d canvas in the same 1120x760 space; lit pixels become homes
 (define hidden (create-element "canvas"))
@@ -282,6 +357,42 @@
        (local float ea (* soft (- (fl 1) (smoothstep (fl 0 10) (fl 0 55) t))))
        (set! gl_FragColor (vec4 (* (* c glint) hot) (* alpha ea)))))))
 
+;; ================= CELL FILL: the frozen ground colour =================
+;; each hexagon fills with the GOETEIA wordmark blue (azure at the centre
+;; deepening to lapis at the rim) once the front has passed it by the lag;
+;; the white crystals bloom on top of this bed
+(define frost-p
+  (fx-program!
+   '((attribute vec2 a_pos)
+     (attribute vec3 a_meta)                ; arrival, seed, edge
+     (uniform float ice)
+     (uniform float lag)
+     (varying float v_fill)
+     (varying float v_edge)
+     (varying float v_seed)
+     (define (main) void
+       (local vec2 c (vec2 (- (* (/ a_pos.x (fl 1120)) (fl 2)) (fl 1))
+                           (- (fl 1) (* (/ a_pos.y (fl 760)) (fl 2)))))
+       (set! gl_Position (vec4 c (fl 0) (fl 1)))
+       (set! v_fill (smoothstep lag (+ lag (fl 150)) (- ice a_meta.x)))
+       (set! v_edge a_meta.z)
+       (set! v_seed a_meta.y)))
+   '((precision mediump float)
+     (varying float v_fill)
+     (varying float v_edge)
+     (varying float v_seed)
+     (uniform float time)
+     (uniform float alpha)
+     (define (main) void
+       (if (< v_fill (fl 0 01)) (discard))
+       (local vec3 azure (vec3 (fl 0 28) (fl 0 53) (fl 0 93)))
+       (local vec3 lapis (vec3 (fl 0 08) (fl 0 31) (fl 0 77)))
+       (local vec3 c (mix azure lapis v_edge))
+       (local float sh (+ (fl 0 88) (* (fl 0 12) (sin (+ (* time (fl 3)) (* v_seed (fl 30)))))))
+       ;; a touch of feather at the rim so neighbouring cells don't hard-tile
+       (local float a (* v_fill (- (fl 1) (* v_edge (fl 0 25)))))
+       (set! gl_FragColor (vec4 (* c sh) (* (* a (fl 0 65)) alpha)))))))
+
 ;; ================= FROST: ice flowers bloom behind the line ============
 ;; each frost crystal is a point sprite whose fragment draws a six-armed
 ;; star -- rotated and weighted by its seed, so no two are alike -- fading
@@ -362,29 +473,11 @@
        (local float flake (max spine (max (* b1 (fl 0 92)) (* spur (fl 0 78)))))
        ;; a small crisp core
        (set! flake (max flake (- (fl 1) (smoothstep (* corer (fl 0 70)) corer r))))
-       ;; a soft halo that follows the crystal (widened spine + branches +
-       ;; core) -- the shadow bed the white flakes sit on
-       (local float halo (* (- (fl 1) (smoothstep (fl 0) (* sw "3.5") q.y))
-                            (smoothstep (fl 0) (fl 0 05) tip)))
-       (set! halo (max halo (* (- (fl 1) (smoothstep (fl 0) (* bw "3.5") (abs (- q.y (* u slope)))))
-                               (smoothstep (fl 0) (fl 0 25) bt))))
-       (set! halo (max halo (* (- (fl 1) (smoothstep (fl 0) (* bwp "3.5") (abs (- q.y (* up slope)))))
-                               (smoothstep (fl 0) (fl 0 25) btp))))
-       (set! halo (max halo (- (fl 1) (smoothstep (fl 0) (* corer "1.8") r))))
-       (if (< (max flake halo) (fl 0 03)) (discard))
-       ;; per-flake colour: some crystals white on a blue shadow bed, the
-       ;; rest the GOETEIA wordmark blue (lapis -> azure with density)
-       (local float wht (step (fl 0 55) (hash (+ sd (fl 7)))))
-       (local vec3 blue (mix (vec3 (fl 0 08) (fl 0 31) (fl 0 77))
-                             (vec3 (fl 0 28) (fl 0 53) (fl 0 93)) flake))
-       (local vec3 wc (mix (vec3 (fl 0 33) (fl 0 55) (fl 0 93))
-                           (vec3 (fl 0 96) (fl 0 98) (fl 1))
-                           (smoothstep (fl 0 25) (fl 0 75) flake)))
-       (local vec3 c (mix blue wc wht))
-       ;; white flakes: alpha comes from the body OR the blue halo bed
-       (local float af (mix flake (max flake (* halo (fl 0 55))) wht))
+       (if (< flake (fl 0 04)) (discard))
+       ;; every crystal is white -- the blue is the cell fill beneath
+       (local vec3 c (vec3 (fl 0 96) (fl 0 98) (fl 1)))
        (local float tw (+ (fl 0 85) (* (fl 0 15) (sin (+ (* time (fl 2)) (* sd (fl 40)))))))
-       (set! gl_FragColor (vec4 (* c tw) (* (* af v_fill) (* alpha (fl 0 88)))))))))
+       (set! gl_FragColor (vec4 (* c tw) (* (* flake v_fill) (* alpha (fl 0 92)))))))))
 
 ;; ================= embers (fire.ss, transform feedback) ===============
 (define NEMBER 3000)
@@ -635,6 +728,7 @@
 ;; ================= buffers ============================================
 (define fuse-buf (fx-buffer!))
 (define fill-buf (fx-buffer!))
+(define cell-buf (fx-buffer!))
 (define emb-a (fx-buffer!))
 (define emb-b (fx-buffer!))
 (define word-a (fx-buffer!))
@@ -642,6 +736,7 @@
 (cmd-begin!)
 (cmd-bind-buffer! fuse-buf) (cmd-buffer-data! POS (* npoints 16))
 (cmd-bind-buffer! fill-buf) (cmd-buffer-data! FLOW (* NFLOWER 16))
+(cmd-bind-buffer! cell-buf) (cmd-buffer-data! FILLV (* nfillv 20))
 (cmd-bind-buffer! emb-a) (cmd-buffer-data! EMB (* NEMBER 36))
 (cmd-bind-buffer! emb-b) (cmd-buffer-data! EMB (* NEMBER 36))
 (cmd-bind-buffer! word-a) (cmd-buffer-data! WST (* pool 44))
@@ -755,7 +850,15 @@
         ;; movements 2-5: ice + frost, then GOETEIA and IGROPYR
         ((fl<? ICE-START tc)
          (when (fl<? 0.004 hive-a)
-           ;; ice flowers bloom behind the front
+           ;; the frozen cells fill with the wordmark blue first
+           (when (> nfillv 0)
+             (fx-use! frost-p cell-buf)
+             (fx-uniform! frost-p 'ice ice)
+             (fx-uniform! frost-p 'lag ICE-LAG)
+             (fx-uniform! frost-p 'time tc)
+             (fx-uniform! frost-p 'alpha hive-a)
+             (cmd-draw-arrays! GL-TRIANGLES 0 nfillv))
+           ;; then the white ice flowers bloom on top
            (fx-use! flower-p fill-buf)
            (fx-uniform! flower-p 'ice ice)
            (fx-uniform! flower-p 'lag ICE-LAG)
