@@ -314,30 +314,45 @@
        (if (> r (fl 1)) (discard))
        (local float sd v_seed)
        ;; per-flake parameters -- vary the whole crystal, not each arm
-       (local float armlen (+ (fl 0 72) (* (hash (+ sd (fl 1))) (fl 0 24))))
-       (local float spc (+ (fl 0 13) (* (hash (+ sd (fl 2))) (fl 0 10))))
-       (local float blen (+ (fl 0 06) (* (hash (+ sd (fl 3))) (fl 0 09))))
-       (local float slope (+ (fl 0 60) (* (hash (+ sd (fl 4))) (fl 0 55))))
-       (local float w (+ (fl 0 013) (* (hash (+ sd (fl 5))) (fl 0 016))))
-       (local float corer (+ (fl 0 05) (* (hash (+ sd (fl 6))) (fl 0 05))))
+       ;; per-flake parameters. NOTE: (fl a b) encodes hundredths, so the
+       ;; fine widths below are string literals -- (fl 0 013) would be 0.13
+       (local float armlen (+ (fl 0 80) (* (hash (+ sd (fl 1))) (fl 0 16))))
+       (local float spc (+ (fl 0 15) (* (hash (+ sd (fl 2))) (fl 0 10))))
+       (local float blen (+ (fl 0 24) (* (hash (+ sd (fl 3))) (fl 0 20))))
+       (local float slope (+ (fl 0 55) (* (hash (+ sd (fl 4))) (fl 0 30))))
+       (local float w (+ "0.012" (* (hash (+ sd (fl 5))) "0.012")))
+       (local float corer (+ "0.05" (* (hash (+ sd (fl 6))) "0.04")))
        ;; fold the sprite into six-fold mirror symmetry, centred on an arm
        (local float ang (+ (atan p.y p.x) (* sd "6.283")))
        (set! ang (- (mod (+ ang "0.5236") "1.0472") "0.5236"))
        (set! ang (abs ang))
        (local vec2 q (* r (vec2 (cos ang) (sin ang))))     ; q.x along the arm
-       ;; the main spine -- a narrow width band keeps the edge crisp
-       (local float spine (* (* (- (fl 1) (smoothstep (* w (fl 0 78)) w q.y))
-                                (step (fl 0 04) q.x))
-                             (- (fl 1) (smoothstep (* armlen (fl 0 94)) armlen q.x))))
-       ;; evenly spaced side branches, each a short diagonal off the spine
-       (local float rep (mod q.x spc))
-       (local float branch (* (* (- (fl 1) (smoothstep (* w (fl 0 95)) (* w "1.25") (abs (- q.y (* rep slope)))))
-                                 (step (fl 0 02) rep))
-                              (* (- (fl 1) (smoothstep (* blen (fl 0 80)) blen rep))
-                                 (- (fl 1) (smoothstep (* armlen (fl 0 98)) armlen q.x)))))
-       (local float flake (max spine (* branch (fl 0 90))))
-       ;; a small solid hexagonal core with a crisp rim
-       (set! flake (max flake (- (fl 1) (smoothstep (* corer (fl 0 82)) corer r))))
+       ;; needle spine: the width tapers linearly to a sharp point at the tip
+       (local float tip (clamp (- (fl 1) (/ q.x armlen)) (fl 0) (fl 1)))
+       (local float sw (max (* w tip) "0.0035"))
+       (local float spine (* (* (- (fl 1) (smoothstep (* sw (fl 0 50)) sw q.y))
+                                (smoothstep (fl 0) (fl 0 05) tip))
+                             (step (fl 0 02) q.x)))
+       ;; primary side branches: needles off the spine, each tapering to a
+       ;; point, and shorter toward the arm tip -- a fern silhouette
+       (local float u (mod q.x spc))
+       (local float ulen (max (* blen tip) (fl 0 02)))
+       (local float bt (clamp (- (fl 1) (/ u ulen)) (fl 0) (fl 1)))
+       (local float bw (max (* (* w (fl 0 85)) bt) "0.003"))
+       (local float b1 (* (* (- (fl 1) (smoothstep (* bw (fl 0 50)) bw (abs (- q.y (* u slope)))))
+                             (smoothstep (fl 0) (fl 0 35) bt))
+                          (* (step (fl 0 02) u) (step (fl 0 06) q.x))))
+       ;; finer secondary spurs between them -- the repeated forking
+       (local float u2 (mod q.x (* spc "0.47")))
+       (local float ulen2 (max (* (* blen "0.38") tip) "0.015"))
+       (local float bt2 (clamp (- (fl 1) (/ u2 ulen2)) (fl 0) (fl 1)))
+       (local float bw2 (max (* (* w (fl 0 60)) bt2) "0.0025"))
+       (local float b2 (* (* (- (fl 1) (smoothstep (* bw2 (fl 0 50)) bw2 (abs (- q.y (* u2 (* slope "1.15"))))))
+                             (smoothstep (fl 0) (fl 0 35) bt2))
+                          (* (step "0.015" u2) (step (fl 0 06) q.x))))
+       (local float flake (max spine (max (* b1 (fl 0 92)) (* b2 (fl 0 75)))))
+       ;; a small crisp core
+       (set! flake (max flake (- (fl 1) (smoothstep (* corer (fl 0 70)) corer r))))
        (if (< flake (fl 0 04)) (discard))
        ;; icy blue -> lighter icy blue (kept blue, not white, so the flake
        ;; reads on the light page)
