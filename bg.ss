@@ -368,9 +368,17 @@
        (local float wht (step (fl 0 55) (hash (+ sd (fl 7)))))
        (local vec3 blue (mix (vec3 (fl 0 08) (fl 0 31) (fl 0 77))
                              (vec3 (fl 0 28) (fl 0 53) (fl 0 93)) flake))
-       (local vec3 c (mix blue (vec3 (fl 0 93) (fl 0 97) (fl 1)) wht))
+       ;; white crystals wear a blue edge: the rim leans azure, only the
+       ;; dense interior is white
+       (local vec3 wc (mix (vec3 (fl 0 35) (fl 0 56) (fl 0 94))
+                           (vec3 (fl 0 95) (fl 0 97) (fl 1))
+                           (smoothstep (fl 0 20) (fl 0 80) flake)))
+       (local vec3 c (mix blue wc wht))
+       ;; white crystals get a steeper alpha ramp so their blue rim is
+       ;; actually opaque enough to read on the light page
+       (local float af (mix flake (smoothstep (fl 0) (fl 0 55) flake) wht))
        (local float tw (+ (fl 0 85) (* (fl 0 15) (sin (+ (* time (fl 2)) (* sd (fl 40)))))))
-       (set! gl_FragColor (vec4 (* c tw) (* (* flake v_fill) (* alpha (fl 0 88)))))))))
+       (set! gl_FragColor (vec4 (* c tw) (* (* af v_fill) (* alpha (fl 0 88)))))))))
 
 ;; ================= embers (fire.ss, transform feedback) ===============
 (define NEMBER 3000)
