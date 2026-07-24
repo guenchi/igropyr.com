@@ -317,8 +317,8 @@
        ;; per-flake parameters. NOTE: (fl a b) encodes hundredths, so the
        ;; fine widths below are string literals -- (fl 0 013) would be 0.13
        (local float armlen (+ (fl 0 80) (* (hash (+ sd (fl 1))) (fl 0 16))))
-       (local float spc (+ (fl 0 15) (* (hash (+ sd (fl 2))) (fl 0 10))))
-       (local float blen (+ (fl 0 24) (* (hash (+ sd (fl 3))) (fl 0 20))))
+       (local float spc (+ (fl 0 24) (* (hash (+ sd (fl 2))) (fl 0 10))))
+       (local float blen (+ (fl 0 50) (* (hash (+ sd (fl 3))) (fl 0 28))))
        (local float slope (+ (fl 0 55) (* (hash (+ sd (fl 4))) (fl 0 30))))
        (local float w (+ "0.012" (* (hash (+ sd (fl 5))) "0.012")))
        (local float corer (+ "0.05" (* (hash (+ sd (fl 6))) "0.04")))
@@ -333,24 +333,33 @@
        (local float spine (* (* (- (fl 1) (smoothstep (* sw (fl 0 50)) sw q.y))
                                 (smoothstep (fl 0) (fl 0 05) tip))
                              (step (fl 0 02) q.x)))
-       ;; primary side branches: needles off the spine, each tapering to a
-       ;; point, and shorter toward the arm tip -- a fern silhouette
+       ;; primary side branches: LONG tapering needles. Each is evaluated
+       ;; from its own station AND the previous one, so a branch runs past
+       ;; the next station -- its length comes from blen, not the spacing
        (local float u (mod q.x spc))
-       (local float ulen (max (* blen tip) (fl 0 02)))
+       (local float ulen (max (* blen tip) (fl 0 03)))
        (local float bt (clamp (- (fl 1) (/ u ulen)) (fl 0) (fl 1)))
        (local float bw (max (* (* w (fl 0 85)) bt) "0.003"))
        (local float b1 (* (* (- (fl 1) (smoothstep (* bw (fl 0 50)) bw (abs (- q.y (* u slope)))))
-                             (smoothstep (fl 0) (fl 0 35) bt))
+                             (smoothstep (fl 0) (fl 0 25) bt))
                           (* (step (fl 0 02) u) (step (fl 0 06) q.x))))
-       ;; finer secondary spurs between them -- the repeated forking
-       (local float u2 (mod q.x (* spc "0.47")))
-       (local float ulen2 (max (* (* blen "0.38") tip) "0.015"))
-       (local float bt2 (clamp (- (fl 1) (/ u2 ulen2)) (fl 0) (fl 1)))
-       (local float bw2 (max (* (* w (fl 0 60)) bt2) "0.0025"))
-       (local float b2 (* (* (- (fl 1) (smoothstep (* bw2 (fl 0 50)) bw2 (abs (- q.y (* u2 (* slope "1.15"))))))
-                             (smoothstep (fl 0) (fl 0 35) bt2))
-                          (* (step "0.015" u2) (step (fl 0 06) q.x))))
-       (local float flake (max spine (max (* b1 (fl 0 92)) (* b2 (fl 0 75)))))
+       (local float up (+ u spc))
+       (local float btp (clamp (- (fl 1) (/ up ulen)) (fl 0) (fl 1)))
+       (local float bwp (max (* (* w (fl 0 85)) btp) "0.003"))
+       (local float b1p (* (- (fl 1) (smoothstep (* bwp (fl 0 50)) bwp (abs (- q.y (* up slope)))))
+                           (* (smoothstep (fl 0) (fl 0 25) btp) (step (fl 0 06) q.x))))
+       (set! b1 (max b1 b1p))
+       ;; grandchild spurs: feathers rising off the branch itself, tapering
+       ;; too, and shorter toward the branch tip
+       (local float e (abs (- q.y (* u slope))))
+       (local float s2 (mod u "0.10"))
+       (local float slen (max (* (* blen "0.34") bt) (fl 0 02)))
+       (local float st (clamp (- (fl 1) (/ s2 slen)) (fl 0) (fl 1)))
+       (local float sw2 (max (* (* w (fl 0 60)) st) "0.0025"))
+       (local float spur (* (* (- (fl 1) (smoothstep (* sw2 (fl 0 50)) sw2 (abs (- e (* s2 "0.9")))))
+                               (smoothstep (fl 0) (fl 0 30) st))
+                            (* (smoothstep (fl 0) (fl 0 20) bt) (step "0.012" s2))))
+       (local float flake (max spine (max (* b1 (fl 0 92)) (* spur (fl 0 78)))))
        ;; a small crisp core
        (set! flake (max flake (- (fl 1) (smoothstep (* corer (fl 0 70)) corer r))))
        (if (< flake (fl 0 04)) (discard))
