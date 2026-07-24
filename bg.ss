@@ -362,21 +362,27 @@
        (local float flake (max spine (max (* b1 (fl 0 92)) (* spur (fl 0 78)))))
        ;; a small crisp core
        (set! flake (max flake (- (fl 1) (smoothstep (* corer (fl 0 70)) corer r))))
-       (if (< flake (fl 0 04)) (discard))
-       ;; per-flake colour: some crystals white, the rest the GOETEIA
-       ;; wordmark blue (lapis -> azure with density)
+       ;; a soft halo that follows the crystal (widened spine + branches +
+       ;; core) -- the shadow bed the white flakes sit on
+       (local float halo (* (- (fl 1) (smoothstep (fl 0) (* sw "3.5") q.y))
+                            (smoothstep (fl 0) (fl 0 05) tip)))
+       (set! halo (max halo (* (- (fl 1) (smoothstep (fl 0) (* bw "3.5") (abs (- q.y (* u slope)))))
+                               (smoothstep (fl 0) (fl 0 25) bt))))
+       (set! halo (max halo (* (- (fl 1) (smoothstep (fl 0) (* bwp "3.5") (abs (- q.y (* up slope)))))
+                               (smoothstep (fl 0) (fl 0 25) btp))))
+       (set! halo (max halo (- (fl 1) (smoothstep (fl 0) (* corer "1.8") r))))
+       (if (< (max flake halo) (fl 0 03)) (discard))
+       ;; per-flake colour: some crystals white on a blue shadow bed, the
+       ;; rest the GOETEIA wordmark blue (lapis -> azure with density)
        (local float wht (step (fl 0 55) (hash (+ sd (fl 7)))))
        (local vec3 blue (mix (vec3 (fl 0 08) (fl 0 31) (fl 0 77))
                              (vec3 (fl 0 28) (fl 0 53) (fl 0 93)) flake))
-       ;; white crystals wear a blue edge: the rim leans azure, only the
-       ;; dense interior is white
-       (local vec3 wc (mix (vec3 (fl 0 35) (fl 0 56) (fl 0 94))
-                           (vec3 (fl 0 95) (fl 0 97) (fl 1))
-                           (smoothstep (fl 0 20) (fl 0 80) flake)))
+       (local vec3 wc (mix (vec3 (fl 0 33) (fl 0 55) (fl 0 93))
+                           (vec3 (fl 0 96) (fl 0 98) (fl 1))
+                           (smoothstep (fl 0 25) (fl 0 75) flake)))
        (local vec3 c (mix blue wc wht))
-       ;; white crystals get a steeper alpha ramp so their blue rim is
-       ;; actually opaque enough to read on the light page
-       (local float af (mix flake (smoothstep (fl 0) (fl 0 55) flake) wht))
+       ;; white flakes: alpha comes from the body OR the blue halo bed
+       (local float af (mix flake (max flake (* halo (fl 0 55))) wht))
        (local float tw (+ (fl 0 85) (* (fl 0 15) (sin (+ (* time (fl 2)) (* sd (fl 40)))))))
        (set! gl_FragColor (vec4 (* c tw) (* (* af v_fill) (* alpha (fl 0 88)))))))))
 
