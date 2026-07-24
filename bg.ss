@@ -363,10 +363,12 @@
        ;; a small crisp core
        (set! flake (max flake (- (fl 1) (smoothstep (* corer (fl 0 70)) corer r))))
        (if (< flake (fl 0 04)) (discard))
-       ;; icy blue -> lighter icy blue (kept blue, not white, so the flake
-       ;; reads on the light page)
-       (local vec3 c (mix (vec3 (fl 0 40) (fl 0 60) (fl 0 92))
-                          (vec3 (fl 0 66) (fl 0 82) (fl 0 99)) flake))
+       ;; per-flake colour: some crystals white, the rest the GOETEIA
+       ;; wordmark blue (lapis -> azure with density)
+       (local float wht (step (fl 0 55) (hash (+ sd (fl 7)))))
+       (local vec3 blue (mix (vec3 (fl 0 08) (fl 0 31) (fl 0 77))
+                             (vec3 (fl 0 28) (fl 0 53) (fl 0 93)) flake))
+       (local vec3 c (mix blue (vec3 (fl 0 93) (fl 0 97) (fl 1)) wht))
        (local float tw (+ (fl 0 85) (* (fl 0 15) (sin (+ (* time (fl 2)) (* sd (fl 40)))))))
        (set! gl_FragColor (vec4 (* c tw) (* (* flake v_fill) (* alpha (fl 0 88)))))))))
 
