@@ -613,8 +613,8 @@
      (uniform float u_word)
      (uniform float u_alpha)
      (varying float v_hx)
-     (varying float v_speed)
      (varying float v_word)
+     (varying float v_seed)
      (define (main) void
        (set! gl_Position (vec4 (- (* (/ a_pos.x (fl 1120)) (fl 2)) (fl 1))
                                (- (fl 1) (* (/ a_pos.y (fl 760)) (fl 2)))
@@ -622,29 +622,33 @@
        (set! gl_PointSize (+ (fl 2 40) (* a_seed (fl 0 90))))
        (local vec2 wh (mix a_homeg a_homei u_word))
        (set! v_hx (/ wh.x (fl 1120)))
-       (set! v_speed (length a_vel))
-       (set! v_word u_word)))
+       (set! v_word u_word)
+       (set! v_seed a_seed)))
    '((precision mediump float)
      (varying float v_hx)
-     (varying float v_speed)
      (varying float v_word)
+     (varying float v_seed)
      (uniform float u_alpha)
+     (uniform float u_dir)               ; 1 = assembling/held, 0 = dispersing
      (define (main) void
        (local vec2 pc (- gl_PointCoord (vec2 (fl 0 50) (fl 0 50))))
        (local float d2 (dot pc pc))
-       ;; GOETEIA is lapis->azure; IGROPYR is the igropyr site's orange->amber
-       (local vec3 blue (mix (vec3 (fl 0 08) (fl 0 31) (fl 0 77))
+       ;; GOETEIA wears lapis->azure. While ASSEMBLING, its dots wear the
+       ;; frozen-cell bed blue (azure..lapis by seed) and take the word
+       ;; colour as they arrive; while DISPERSING they keep the word colour.
+       (local vec3 grad (mix (vec3 (fl 0 08) (fl 0 31) (fl 0 77))
                              (vec3 (fl 0 28) (fl 0 53) (fl 0 93)) v_hx))
+       (local vec3 bed (mix (vec3 (fl 0 28) (fl 0 53) (fl 0 93))
+                            (vec3 (fl 0 08) (fl 0 31) (fl 0 77))
+                            (fract (* v_seed "3.7"))))
+       (local float k (mix (fl 1) u_alpha u_dir))
+       (local vec3 cblue (mix bed grad k))
+       ;; IGROPYR's dots are the word's orange throughout -- no glint
        (local vec3 warm (mix (vec3 (fl 0 91) (fl 0 35) (fl 0 05))
                              (vec3 (fl 1) (fl 0 66) (fl 0 20)) v_hx))
-       (local vec3 c (mix blue warm v_word))
-       ;; flight makes them glint toward a lighter tint of their own hue
-       (local vec3 glint (mix (vec3 (fl 0 70) (fl 0 82) (fl 1))
-                              (vec3 (fl 1) (fl 0 88) (fl 0 60)) v_word))
-       (set! c (mix c glint (min (* v_speed "0.0035") (fl 0 65))))
-       (local float hot (+ (fl 1) (* "0.6" (smoothstep "40.0" "260.0" v_speed))))
+       (local vec3 c (mix cblue warm v_word))
        (set! gl_FragColor
-             (vec4 (* c hot) (* u_alpha (- (fl 1) (smoothstep (fl 0 04) (fl 0 25) d2)))))))))
+             (vec4 c (* u_alpha (- (fl 1) (smoothstep (fl 0 04) (fl 0 25) d2)))))))))
 
 ;; ================= HDR bloom (fire.ss) ================================
 (define scene-t (fx-target-hdr! 1120 760))
@@ -812,6 +816,11 @@
             (u-grip (if in-word 1.0 0.0))
             (u-form (if in-word (word-form wt) 0.0))
             (u-word (if in-word (word-which wt) 0.0))
+            ;; 1 while a word assembles/holds, 0 while it disperses
+            (u-dir (if (and in-word
+                            (or (fl<? wt WA2)
+                                (and (fl<? WA4 wt) (fl<? wt WA6))))
+                       1.0 0.0))
             ;; the hive fades out as the first word (GOETEIA) assembles
             (hive-a (if in-word (clamp01 (fl- 1.0 (fl/ wt A-IN))) 1.0)))
        ;; ---- step the GPU particle systems ----
@@ -875,6 +884,7 @@
            (fx-use! word-draw (cdr wbufs))
            (fx-uniform! word-draw 'u_word u-word)
            (fx-uniform! word-draw 'u_alpha u-form)
+           (fx-uniform! word-draw 'u_dir u-dir)
            (cmd-draw-arrays! GL-POINTS 0 pool))))
        ;; ---- bloom: what burns past white becomes a halo ----
        (cmd-blend! 'off)
