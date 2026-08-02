@@ -154,9 +154,13 @@
            "BLAS-accelerated vector search…")
 
         (p "Goeteia came from another daydream — writing the front end in "
-           "pure Scheme as well. I tried Scheme-to-JavaScript compilers, "
-           "but in the end a Scheme compiler built on WebAssembly turned "
-           "out to be the better choice.")
+           "pure Scheme as well. I tried the existing Scheme-to-JavaScript "
+           "compilers first, but building on WebAssembly turned out to be "
+           "the better foundation — and in the end it cost me nothing on "
+           "the JavaScript side either: the same source compiles to both, "
+           "so a browser too old for WebAssembly GC still gets the page, "
+           "running a JavaScript twin that nobody has to keep in step "
+           "because it is generated, never written.")
 
         (p "Goeteia, for its part, is a compiler just 50 kB, running right "
            "in the browser, and heavily "
