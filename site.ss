@@ -160,9 +160,7 @@
            "the JavaScript side either: the same source compiles to both, "
            "so a browser too old for WebAssembly GC still gets the page, "
            "running a JavaScript twin that nobody has to keep in step "
-           "because it is generated, never written — and its logic "
-           "obfuscated in passing, since a compiler keeps neither your "
-           "names nor your shapes.")
+           "because it is generated, never written.")
 
         (p "Goeteia, for its part, is a compiler just 50 kB, running right "
            "in the browser, and heavily "
