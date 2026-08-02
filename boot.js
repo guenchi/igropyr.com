@@ -1,12 +1,16 @@
-// Compile the background animation in the browser: Goeteia (goeteia.wasm)
-// compiles bg.ss + its libraries client-side, then the fresh module runs
-// against a real WebGL2 bridge. No precompiled binary is shipped — the
-// honeycomb fire, the ice, and the GOETEIA particles are literally
-// compiled by Goeteia in your browser.
-import { makeJsBridge, jsBridgeStubs } from './rt/jsbridge.mjs';
+// The page's background is not a shipped binary: Goeteia (goeteia.wasm)
+// compiles bg.ss and its libraries in your browser, and the fresh module
+// runs against a real WebGL2 bridge. The honeycomb fire, the ice and the
+// GOETEIA particles are literally compiled here, on load.
+//
+// The cycle itself -- fetch the sources, feed them to the compiler,
+// instantiate what comes out against the DOM bridge -- lives in
+// rt/web.mjs, so this file is only the page's own part: which sources,
+// and whether this browser can run the result at all.
+// Copyright (c) 2026 guenchi. MIT license; see LICENSE.
+import { compileGoeteiaFrom, runGoeteiaBytes } from './rt/web.mjs';
 
-// prelude + the libraries bg.ss imports, then bg.ss itself; dependencies
-// come before their dependents (fx needs js, gl, glsl, mat).
+// dependencies before their dependents (fx needs js, gl, glsl, mat, mesh)
 const SOURCES = [
     'src/prelude.ss',
     'lib/web/js.ss',
@@ -14,67 +18,26 @@ const SOURCES = [
     'lib/gfx/glsl.ss',
     'lib/gfx/gl.ss',
     'lib/gfx/mat.ss',
+    'lib/gfx/mesh.ss',
     'lib/gfx/fx.ss',
     'hive-data.ss',
     'bg.ss',
 ];
 
-const enc = new TextEncoder();
-const stubs = {
-    path_byte: () => {}, open_read: () => -1, open_write: () => -1,
-    fread: () => -1, fwrite: () => {}, fclose: () => {},
-};
-
 (async () => {
     const canvas = document.getElementById('bg');
-    if (!canvas) return;                              // no canvas, nothing to do
-
-    // WebGL2 is required (transform feedback, HDR float targets)
+    if (!canvas) return;
+    // WebGL2 is required (transform feedback, HDR float targets); without
+    // it the page stays plain rather than showing an empty canvas
     try {
-        const probe = canvas.getContext('webgl2');
-        if (!probe) return;                           // no WebGL2: leave the page plain
+        if (!canvas.getContext('webgl2')) return;
     } catch { return; }
 
-    let wasmBuf, texts;
     try {
-        [wasmBuf, ...texts] = await Promise.all([
-            fetch('goeteia.wasm').then(r => r.arrayBuffer()),
-            ...SOURCES.map(p => fetch(p).then(r => r.text())),
-        ]);
-    } catch { return; }                               // offline: skip the animation
-
-    // ---- compile: feed the source to goeteia.wasm, collect its output ----
-    const input = enc.encode(texts.join('\n'));
-    const out = [];
-    let pos = 0;
-    const { instance: compiler } = await WebAssembly.instantiate(wasmBuf, {
-        io: {
-            write_byte: b => out.push(b),
-            read_byte: () => (pos < input.length ? input[pos++] : -1),
-            ...stubs,
-        },
-        js: jsBridgeStubs,                            // the compiler never calls JS
-    });
-    compiler.exports.main();
-    if (out.length === 0) return;                     // compile error
-    const bgWasm = new Uint8Array(out);
-
-    // ---- instantiate the fresh module against the DOM/WebGL bridge ----
-    let ex;
-    const io = { write_byte: () => {}, read_byte: () => -1, ...stubs };
-    let instance;
-    try {
-        ({ instance } = await WebAssembly.instantiate(bgWasm, {
-            io, js: makeJsBridge(() => ex),
-        }));
-    } catch {
-        // engine advertised WebAssembly.Suspending but rejected the import
-        const js = makeJsBridge(() => ex);
-        js.await = p => p;
-        ({ instance } = await WebAssembly.instantiate(bgWasm, { io, js }));
+        await runGoeteiaBytes(await compileGoeteiaFrom(SOURCES));
+    } catch (e) {
+        // offline, a compile error, or an engine that cannot run the
+        // module: the page reads the same, just without the animation
+        console.warn('[igropyr] background off:', e && e.message);
     }
-    ex = instance.exports;
-    // expose the staging memory so (gfx gl) can build typed-array views
-    if (ex.memory) globalThis.__goeteia_mem = ex.memory;
-    ex.main();
 })();
