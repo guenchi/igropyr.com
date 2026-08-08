@@ -172,6 +172,23 @@
            "post-virtual-DOM-tree era, a distinctly Scheme one: "
            "macro-based DOM state management, and pretext effects.")
 
+        (p "Goeteia now has gone further than I planned for it. Everything "
+           "about it is small — a compile takes a moment, a check needs "
+           "no eyes and no graphics card, only arithmetic — and small "
+           "things can be run side by side, so it drives its AI pipelines "
+           "many at a time. Each one takes a piece of video and lifts out "
+           "a skeleton, its textures, its skinning, its motion: work that "
+           "used to want a capture stage and someone in a suit, and now "
+           "wants only footage.")
+
+        (p "AI is already fluent at the reference imagery — the "
+           "designs, the turntables, the motion video; what was missing "
+           "was the road from those images to finished 3D. This is that "
+           "last piece of the puzzle. And like every AI, it does not "
+           "arrive in a single pass; it "
+           "closes on its target by going round again, and again, until "
+           "the program says it came out right.")
+
         (p "The project is entirely open source, free for any use — "
            "commercial included. I hope you enjoy it.")
 
