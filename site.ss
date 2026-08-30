@@ -99,98 +99,88 @@
         (p (@ (class "lead"))
            "The Igropyr project contains two parts: "
            (a (@ (href "https://igropyr.dev")) "Igropyr")
-           " on the server, and "
+           " on the backend, and "
            (a (@ (href "https://goeteia.dev")) "Goeteia")
            " in the browser.")
 
-        (p "Igropyr began in 2018. Out of love for Scheme, I was looking "
-           "for a modern Scheme web server I could actually run in "
-           "production — not a proof of concept content to stay in "
-           "academia — and I found nothing.")
+        (p "I started Igropyr back in 2018 simply because I wanted to "
+           "write Scheme. I was hunting for a modern, production-ready "
+           "Scheme web server—something that wasn't just an academic "
+           "toy—and came up completely empty. Even now, most Scheme web "
+           "servers still treat HTTP like glorified string concatenation. "
+           "They're missing all the baseline stuff a real backend needs "
+           "today: proper JSON handling, real concurrency, async I/O.")
 
-        (p "Back then, and still today, Scheme web servers stop at raw "
-           "string concatenation to build a request and its response. "
-           "They lack the modern conveniences — proper JSON responses, "
-           "concurrency, asynchrony, and the like — that a real application "
-           "backend needs.")
+        (p "So I hacked something together. I tried Apache with CGI for a "
+           "bit, then looked at Node and wrote a thin wrapper over libuv. "
+           "That was the first real prototype.")
 
-        (p "So I improvised. I tried Apache calling out to CGI. Then, "
-           "inspired by Node, I wrote a first thin wrapper over libuv. "
-           "That was Igropyr's earliest prototype.")
+        (p "Later on, I fell down the Erlang rabbit hole and got hooked "
+           "on its philosophy: message passing and " (em "let it crash")
+           ". Around that time, " (span (@ (class "quote")) "Swish")
+           " came out with an Erlang-style system on top of Chez Scheme. "
+           "It was brilliant, but its network layer was still stuck in "
+           "that primitive string-building era. Still, Swish was the push "
+           "I needed. It convinced me to tear Igropyr down and rebuild it "
+           "from scratch.")
 
-        (p "In the years that followed I came to know Erlang, and took "
-           "its ideas to heart: message passing, and " (em "let it crash")
-           ". Around that time " (span (@ (class "quote")) "Swish")
-           " had built the earliest Erlang-style system on Chez Scheme — "
-           "but its network programming still lived in that same "
-           "primitive, string-concatenation world.")
+        (p "Today's Igropyr goes a lot further. If a handler crashes or "
+           "times out, it doesn't just silently drop the connection; it "
+           "tells the client exactly what went wrong and hands back the "
+           "steering wheel. The client can retry, tweak parameters, or "
+           "bail out. In practice, this hides server-side hiccups from "
+           "the user and cuts down wait times. Better yet, it talks "
+           "natively in s-expressions. When both ends speak Scheme, you "
+           "don't need a codec. Data just crosses the wire exactly as it "
+           "is, down to the exact integers. Scheme finally has its own "
+           "JSON.")
 
-        (p "Swish is what convinced me. Inspired by it, I decided to "
-           "rebuild Igropyr from the ground up.")
+        (p "It actually pulled off continuation-based web programming, "
+           "too—that old pipe dream of the functional programming world. "
+           "You wouldn't use it for a simple web form, but for strictly "
+           "transactional flows? It's magic. A single transaction can "
+           "stretch right across the wire, parked and waiting between the "
+           "server and the client. At this point, it's packed with what "
+           "you'd expect from a modern backend: JWT, non-blocking DB and "
+           "Redis clients, auto-clustering, hot code swapping, and even "
+           "BLAS-accelerated vector search.")
 
-        (p "Today Igropyr goes further than that Erlang prototype ever "
-           "did. When a handler crashes or a request times out, the "
-           "server can tell the client that the request went wrong — and "
-           "hand the choice back to it: retry, retry with different "
-           "parameters, or stop. In practice this shortens how long a "
-           "user waits, and it makes server-side failures invisible from "
-           "the user's side.")
+        (p "Then there's Goeteia, which came from the itch to write the "
+           "frontend in pure Scheme, too. I messed around with "
+           "Scheme-to-JS compilers at first, but targeting WebAssembly "
+           "ended up being the real answer. And I didn't even lose JS "
+           "support in the process: the compiler spits out both from the "
+           "same source. If a browser is too old for Wasm GC, it "
+           "gracefully falls back to a generated JS twin. You never have "
+           "to manually sync them.")
 
-        (p "And it carries messages as s-expressions themselves: when "
-           "both ends speak Scheme, a request and its reply need no codec "
-           "at all — the data crosses the wire as it is, exact numbers "
-           "intact. Scheme, at last, has a JSON of its own.")
+        (p "The Goeteia compiler itself is a tiny 50kB footprint that "
+           "runs directly in the browser, heavily dialed in for 3D. It "
+           "can render heavy web effects on the fly straight from Scheme, "
+           "or precompile them if you need raw speed and game-level "
+           "performance. I also took a weird, distinctly Scheme approach "
+           "to the DOM. Instead of a heavy virtual DOM tree, it uses "
+           "macro-based state management and pretext effects.")
 
-        (p "It even supports continuation-based web programming — the "
-           "functional community's most beautiful daydream. It is no fit "
-           "for an ordinary form-filling page, but where the work is "
-           "strongly transactional it lets a single transaction stretch "
-           "across the wire, held open between the server and the remote "
-           "client.")
+        (p "Lately, Goeteia has kind of outgrown its original scope. "
+           "Because everything about it is so small and fast—compiles "
+           "take milliseconds, and testing logic requires zero GPU "
+           "overhead, just pure math—you can run a ton of instances side "
+           "by side. I'm currently using it to drive highly concurrent AI "
+           "pipelines. You feed it video footage, and it extracts the "
+           "skeleton, textures, skinning, and motion data. Stuff that "
+           "used to require a mocap suit and a soundstage now just needs "
+           "a raw video file.")
 
-        (p "By now Igropyr carries everything a modern web server is "
-           "expected to have: JWT, non-blocking Redis and database "
-           "clients, a self-forming cluster, hot code swapping, and even "
-           "BLAS-accelerated vector search…")
+        (p "AI is already great at generating reference art, turntables, "
+           "and motion video. The missing link was getting from those "
+           "pixels to actual, usable 3D assets. Goeteia is that last "
+           "piece of the puzzle. Like any AI workflow, it's not a "
+           "one-shot process; it loops, tweaking and converging on the "
+           "target until the code decides it's right.")
 
-        (p "Goeteia came from another daydream — writing the front end in "
-           "pure Scheme as well. I tried the existing Scheme-to-JavaScript "
-           "compilers first, but building on WebAssembly turned out to be "
-           "the better foundation — and in the end it cost me nothing on "
-           "the JavaScript side either: the same source compiles to both, "
-           "so a browser too old for WebAssembly GC still gets the page, "
-           "running a JavaScript twin that nobody has to keep in step "
-           "because it is generated, never written.")
-
-        (p "Goeteia, for its part, is a compiler just 50 kB, running right "
-           "in the browser, and heavily "
-           "optimized for 3D. It renders dazzling web effects from Scheme "
-           "straight to the page on the fly, or precompiles them for more "
-           "speed and optimization, and it supports programming web games. "
-           "It also "
-           "takes a fresh approach to the DOM — in this "
-           "post-virtual-DOM-tree era, a distinctly Scheme one: "
-           "macro-based DOM state management, and pretext effects.")
-
-        (p "Goeteia now has gone further than I planned for it. Everything "
-           "about it is small — a compile takes a moment, a check needs "
-           "no eyes and no graphics card, only arithmetic — and small "
-           "things can be run side by side, so it drives its AI pipelines "
-           "many at a time. Each one takes a piece of video and lifts out "
-           "a skeleton, its textures, its skinning, its motion: work that "
-           "used to want a capture stage and someone in a suit, and now "
-           "wants only footage.")
-
-        (p "AI is already fluent at the reference imagery — the "
-           "designs, the turntables, the motion video; what was missing "
-           "was the road from those images to finished 3D. This is that "
-           "last piece of the puzzle. And like every AI, it does not "
-           "arrive in a single pass; it "
-           "closes on its target by going round again, and again, until "
-           "the program says it came out right.")
-
-        (p "The project is entirely open source, free for any use — "
-           "commercial included. I hope you enjoy it.")
+        (p "Both parts of this project are fully open source and free for "
+           "anything, including commercial use. Have fun with it.")
 
         (footer
           (a (@ (href "https://github.com/guenchi/Igropyr/blob/master/LICENSE")) "MIT")
