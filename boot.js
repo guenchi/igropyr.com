@@ -7,7 +7,7 @@
 // instantiate what comes out against the DOM bridge -- lives in
 // rt/web.mjs, so this file is only the page's own part: which sources,
 // and whether this browser can run the result at all.
-// Copyright (c) 2026 guenchi. MIT license; see LICENSE.
+// Copyright (c) 2026 guenchi. Apache License 2.0; see LICENSE.
 import { compileGoeteiaFrom, runGoeteiaBytes } from './rt/web.mjs';
 
 // dependencies before their dependents (fx needs js, gl, glsl, mat, mesh)

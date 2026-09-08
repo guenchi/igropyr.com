@@ -183,7 +183,7 @@
            "anything, including commercial use. Have fun with it.")
 
         (footer
-          (a (@ (href "https://github.com/guenchi/Igropyr/blob/master/LICENSE")) "MIT")
+          (a (@ (href "https://github.com/guenchi/Igropyr/blob/master/LICENSE")) "Apache")
           " · Built in "
           (span (@ (class "foot-stack"))
             "pure Scheme" (br)

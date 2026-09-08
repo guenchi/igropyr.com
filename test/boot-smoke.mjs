@@ -5,7 +5,7 @@
 //   2. no WebGL2 -> the compiler is never even fetched
 //   3. the happy road reaches compile and run
 // Run: node test/boot-smoke.mjs   (from the site root)   exit 0 = pass.
-// Copyright (c) 2026 guenchi. MIT license; see LICENSE.
+// Copyright (c) 2026 guenchi. Apache License 2.0; see LICENSE.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
